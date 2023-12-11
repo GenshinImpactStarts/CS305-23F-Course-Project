@@ -24,24 +24,6 @@ class Header:
 
             return headers
     
-    def generate_response_header(method, path):
-        header = ''
-        if method == 'GET' or method == 'HEAD':
-            header += 'HTTP/1.1 200 OK\r\n'
-            header += 'Content-Type: text/html; charset=utf-8\r\n'
-        elif method == 'POST':
-            header += 'HTTP/1.1 200 OK\r\n'
-            header += 'Content-Type: text/html; charset=utf-8\r\n'
-        else:
-            header += 'HTTP/1.1 405 Method Not Allowed\r\n'
-            header += 'Content-Type: text/html; charset=utf-8\r\n'
-
-        header += 'Connection: close\r\n'
-        header += '\r\n'
-        return header
-    
-
-
     def generate_response_headers(status_code, server_name=None, content_type=None, keep_alive=None, connection=None, age=None, date=None, x_cache_info=None, content_length=None):
 
         response_headers = f"HTTP/1.1 {status_code} {StatusCode.get_description(status_code)}\r\n"
