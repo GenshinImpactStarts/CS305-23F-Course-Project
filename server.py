@@ -3,10 +3,8 @@ from time import sleep
 
 if __name__ == '__main__':
     s = server.Server(('127.0.0.1', 65432))
-    s.start_server()
+    s.start()
     sleep(5)
-    print(len(s._Server__conns))
-    print(len(s._Server__threads))
-    s.stop_server()
-    print(len(s._Server__conns))
-    print(len(s._Server__threads))
+    print(s.connection_cnt())
+    s.stop()
+    print(s.connection_cnt())
