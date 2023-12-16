@@ -17,7 +17,25 @@ class HeadBuilder:
 
 class Headers:
     def __init__(self):
-        pass
+        self.accept = None
+        self.accept_charset = None
+        self.accept_encoding = None
+        self.accept_language = None
+        self.authorization = None
+        self.cache_control = None
+        self.connection = None
+        self.content_length = None
+        self.content_type = None
+        self.cookie = None
+        self.host = None
+        self.if_modified_since = None
+        self.if_none_match = None
+        self.referer = None
+        self.user_agent = None
+
+def http_header_to_python(header):
+    return header.lower().replace("-", "_")
+
 
 class Header:
 
@@ -55,7 +73,7 @@ class Header:
             if line:
                 key, value = line.split(': ', 1)
                 
-                setattr(headers, key.strip(), value.strip())
+                setattr(headers, http_header_to_python(key.strip()), value.strip())
 
         return headers
     
