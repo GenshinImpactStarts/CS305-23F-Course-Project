@@ -2,7 +2,7 @@
 # The only class you need to pay attention to is [class Header]
 # For a new special server, you need to use TODO"Header(your_server_name)" to initialize the header server.
 # If you want to get msg in request_line, please use TODO"parse_request_line(request)". It will return method, path, version.
-# If you want to get msg in other part of header, please use TODO"parse_request_headers(request)".The return value is a special construct, and its member variables may be None.
+# If you want to get msg in other part of header, please use TODO"parse_request_headers(request)".The return value is a special construct, and its member variables may be None. Moreover, body_part may be returned.
 # If you want to "generate_response_headers",please use TODO"get_headbuilder()"first.Then, fill as many member variables as possible in it.Finally,use TODO"generate_response_headers()",it will return a string for response header.
 # Attention! "generate_response_headers()" will initialize the headerbuilder,make sure you use TODO"get_headbuilder()" every time you want to generate a response header.
 # Have fun!
@@ -24,6 +24,7 @@ class HeadBuilder:
         self.x_cache_info=None
         self.date=None
         self.age=None
+        self.keep_alive=None
         # optional fields
 
 class Headers:
@@ -77,16 +78,20 @@ class Header:
     # parse the others!
 
     def parse_request_headers(request):
-        lines = request.split('\r\n')
-        header_lines = lines[1:]
+        if '\r\n\r\n' in request:
+            header_part, body_part = request.split('\r\n\r\n', 1)
+        else:
+            header_part = request
+            body_part = '' 
+        lines = header_part.split('\r\n')
         headers = Headers()
-        for line in header_lines:
-            if line:
-                key, value = line.split(': ', 1)
-                
-                setattr(headers, http_header_to_python(key.strip()), value.strip())
+        for line in lines[1:]:
+            if line == '':
+                break
+            key, value = line.split(': ', 1)
+            setattr(headers, http_header_to_python(key.strip()), value.strip())
 
-        return headers
+        return headers,body_part
     
     # before you use this method, please edit the headbuilder correctly!
     def generate_response_headers(self):
