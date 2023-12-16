@@ -1,3 +1,12 @@
+# In order to help you use my code easily, I add this explanatory note in the very Beginning.
+# The only class you need to pay attention to is [class Header]
+# For a new special server, you need to use TODO"Header(your_server_name)" to initialize the header server.
+# If you want to get msg in request_line, please use TODO"parse_request_line(request)". It will return method, path, version.
+# If you want to get msg in other part of header, please use TODO"parse_request_headers(request)".The return value is a special construct, and its member variables may be None.
+# If you want to "generate_response_headers",please use TODO"get_headbuilder()"first.Then, fill as many member variables as possible in it.Finally,use TODO"generate_response_headers()",it will return a string for response header.
+# Attention! "generate_response_headers()" will initialize the headerbuilder,make sure you use TODO"get_headbuilder()" every time you want to generate a response header.
+# Have fun!
+
 from ..status_code import StatusCode
 import datetime
 
