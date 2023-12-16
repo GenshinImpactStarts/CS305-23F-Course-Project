@@ -1,4 +1,4 @@
-from .status_code import StatusCode
+from ..status_code import StatusCode
 import datetime
 
 __all__ = 'Header',

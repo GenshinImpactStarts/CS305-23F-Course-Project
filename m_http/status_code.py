@@ -1,7 +1,7 @@
 __all__ = 'StatusCode',
 
 
-class StatusCode:
+class StatusCode(Exception):
     _code = {2: 'Success',
              3: 'Redirection',
              4: 'Client Error',
@@ -17,6 +17,9 @@ class StatusCode:
              416: 'Range Not Satisfiable',
              502: 'Bad Gateway',
              503: 'Service Temporarily Unavailable'}
+    
+    def __init__(self, code: int):
+        self.code = code
 
     def get_description(code: int) -> str:
         return StatusCode._code[code]
