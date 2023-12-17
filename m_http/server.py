@@ -4,8 +4,8 @@ import time
 import socket
 from .status_code import StatusCode
 from .threading_tcp import ThreadingTCP
-from http_content import header
-from http_content.body import Body
+from .http_content import header
+from .http_content.body import Body
 
 __all__ = 'Server',
 
