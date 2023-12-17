@@ -9,13 +9,41 @@ from  html.body import Body
 
 __all__ = 'Server',
 
-
 class Server(ThreadingTCP):
-    def GetMethod(self,header_pram,path,username,password) :  #return the status_code and response_data
+    def handle(self, conn: socket.socket, addr: tuple):
+        with conn:
+            while self.handle_request(conn.recv(1024).decode('utf-8')) is not None:
+                pass
+            conn.close()
+    # return None when need to close the connection
+    def handle_request(self, request: str) -> str:
+                method, path, version =html.header.Header.parse_request_line(request)
+                header_pram , body=html.header.Header.parse_request_headers(request)
+                if (method ==" HEAD"):
+                    response =200
+                if header_pram.authorization:
+                    if header_pram.authorization.startswith("Basic "):
+                        authData=header_pram.split(" ",-1)
+                        username = authData.split(':')[0]
+                        password = authData.split(':')[1]
+                    pass                                        # 检查用户名和密码是否匹配
+                else:
+                    pass
+                    response = 401
+                if method == "GET":
+                    response , response_data =self.__GetMethod(self,header_pram,path,username,password)
+
+                elif method == "POST":
+                    response , response_data =self.__PostMethod(self,header_pram,path,username,password)
+                else:
+                    pass
+                if header_pram.connection == 'close':
+                    pass
+    def __GetMethod(self,header_pram,path,username,password) :  #return the status_code and response_data
         access_path =path.split("?")[0]
         SusTech_code =path.split("?")[1]
-        filePath = "/data/"+path                        # 还没处理
-        if  ".." in filePath:                              #prevent attack
+        filePath = "/data/"+path                                # 还没处理
+        if  ".." in filePath:                                   #prevent attack
             return 403
         elif os.path.exists(filePath):
             last_modified_time = time.gmtime(os.path.getmtime(path))
@@ -43,7 +71,7 @@ class Server(ThreadingTCP):
         else :
             return 404
 
-    def PostMethod(self,header_pram,path,username,password):
+    def __PostMethod(self,header_pram,path,username,password):
         upload_or_del =path.split("?")[0]
         Origin_path =path.split("?")[1].strip();            #ex:path=/11912113/abc.py
         if ("path=/" in Origin_path):
@@ -66,34 +94,5 @@ class Server(ThreadingTCP):
                 response =403
         else:
             response = 400
-    
-    def handle(self, conn: socket.socket, addr: tuple,):
-        with conn:
-            while True:
-                request = conn.recv(1024).decode('utf-8')
-                method, path, version =html.header.Header.parse_request_line(request)
-                header_pram , body=html.header.Header.parse_request_headers(request)
-                if (method ==" HEAD"):
-                    response =200
-                
-                if header_pram.authorization:
-                    if header_pram.authorization.startswith("Basic "):
-                        authData=header_pram.split(" ",-1)
-                        username = authData.split(':')[0]
-                        password = authData.split(':')[1]
-                    pass                                        # 检查用户名和密码是否匹配
-                else:
-                    pass
-                    response = 401
-                
-                if method == "GET":
-                    response , response_data =self.GetMethod(self,header_pram,path,username,password)
 
-                elif method == "POST":
-                    response , response_data =self.PostMethod(self,header_pram,path,username,password)
-                else:
-                    pass
-                if header_pram.connection == 'close':
-                    conn.close()
-                    break
 
