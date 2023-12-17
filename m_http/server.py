@@ -4,46 +4,52 @@ import time
 import socket
 from .status_code import StatusCode
 from .threading_tcp import ThreadingTCP
-import html.header
-from  html.body import Body
+from http_content import header
+from http_content.body import Body
 
 __all__ = 'Server',
+
 
 class Server(ThreadingTCP):
     def handle(self, conn: socket.socket, addr: tuple):
         with conn:
-            while self.handle_request(conn.recv(1024).decode('utf-8')) is not None:
+            while self.handle_request(conn.recv(2048).decode('utf-8')) is not None:
                 pass
             conn.close()
+
     # return None when need to close the connection
     def handle_request(self, request: str) -> str:
-                method, path, version =html.header.Header.parse_request_line(request)
-                header_pram , body=html.header.Header.parse_request_headers(request)
-                if (method ==" HEAD"):
-                    response =200
-                if header_pram.authorization:
-                    if header_pram.authorization.startswith("Basic "):
-                        authData=header_pram.split(" ",-1)
-                        username = authData.split(':')[0]
-                        password = authData.split(':')[1]
-                    pass                                        # 检查用户名和密码是否匹配
-                else:
-                    pass
-                    response = 401
-                if method == "GET":
-                    response , response_data =self.__GetMethod(self,header_pram,path,username,password)
+        method, path, version = header.Header.parse_request_line(request)
+        header_pram, body = header.Header.parse_request_headers(request)
+        if (method == " HEAD"):
+            response = 200
+        if header_pram.authorization:
+            if header_pram.authorization.startswith("Basic "):
+                authData = header_pram.split(" ", -1)
+                username = authData.split(':')[0]
+                password = authData.split(':')[1]
+            pass                                        # 检查用户名和密码是否匹配
+        else:
+            pass
+            response = 401
+        if method == "GET":
+            response, response_data = self.__get_method(
+                self, header_pram, path, username, password)
 
-                elif method == "POST":
-                    response , response_data =self.__PostMethod(self,header_pram,path,username,password)
-                else:
-                    pass
-                if header_pram.connection == 'close':
-                    pass
-    def __GetMethod(self,header_pram,path,username,password) :  #return the status_code and response_data
-        access_path =path.split("?")[0]
-        SusTech_code =path.split("?")[1]
+        elif method == "POST":
+            response, response_data = self.__post_method(
+                self, header_pram, path, username, password)
+        else:
+            pass
+        if header_pram.connection == 'close':
+            pass
+
+    # return the status_code and response_data
+    def __get_method(self, header_pram, path, username, password):
+        access_path = path.split("?")[0]
+        SusTech_code = path.split("?")[1]
         filePath = "/data/"+path                                # 还没处理
-        if  ".." in filePath:                                   #prevent attack
+        if ".." in filePath:  # prevent attack
             return 403
         elif os.path.exists(filePath):
             last_modified_time = time.gmtime(os.path.getmtime(path))
@@ -54,45 +60,45 @@ class Server(ThreadingTCP):
                 pass
             if client_request_time >= last_modified_time:
                 return 304
-            #etag =???????????????????????????????????????????????????; how to generate etag 
-            #if header_pram.if_none_match == etag:
+            # etag =???????????????????????????????????????????????????; how to generate etag
+            # if header_pram.if_none_match == etag:
             #    return 304
-            
+
             if os.path.isdir(filePath):
                 if "SUSTech-HTTP=1" in SusTech_code:
                     response_data = Body.get_folder(filePath, return_html=True)
                 else:
-                    response_data = Body.get_folder(filePath, return_html=False)
+                    response_data = Body.get_folder(
+                        filePath, return_html=False)
             elif os.path.isfile(filePath):
                 file_content = Body.get_file(filePath)
                 response_data = file_content
 
-            return 200,response_data
-        else :
+            return 200, response_data
+        else:
             return 404
 
-    def __PostMethod(self,header_pram,path,username,password):
-        upload_or_del =path.split("?")[0]
-        Origin_path =path.split("?")[1].strip();            #ex:path=/11912113/abc.py
+    def __post_method(self, header_pram, path, username, password):
+        upload_or_del = path.split("?")[0]
+        Origin_path = path.split("?")[1].strip()  # ex:path=/11912113/abc.py
         if ("path=/" in Origin_path):
             user_post = Origin_path.split("/")[1]
-            if user_post==username :
-                index= Origin_path.index("path=") + len("path=")
+            if user_post == username:
+                index = Origin_path.index("path=") + len("path=")
                 access_path = path[index:-1]
-                if os.path.exists(access_path):  
-                    if upload_or_del =="/upload":                   #upload the document
-                            Body.recv_post_file(request_data, access_path, "uploaded_file")
-                    elif upload_or_del=="/delete":                  #delete the document
+                if os.path.exists(access_path):
+                    if upload_or_del == "/upload":  # upload the document
+                        Body.recv_post_file(
+                            request_data, access_path, "uploaded_file")
+                    elif upload_or_del == "/delete":  # delete the document
                         if os/path.exists(access_path):
                             try:
                                 os.remove(access_path)
                             except Exception as e:
                                 response = 500
-                else :
-                    response= 404   
-            else :
-                response =403
+                else:
+                    response = 404
+            else:
+                response = 403
         else:
             response = 400
-
-

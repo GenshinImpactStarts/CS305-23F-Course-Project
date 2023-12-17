@@ -2,7 +2,7 @@ __all__ = 'StatusCode',
 
 
 class StatusCode(Exception):
-    _code = {2: 'Success',
+    __code = {2: 'Success',
              3: 'Redirection',
              4: 'Client Error',
              5: 'Server Error',
@@ -22,7 +22,7 @@ class StatusCode(Exception):
         self.code = code
 
     def get_description(code: int) -> str:
-        return StatusCode._code[code]
+        return StatusCode.__code[code]
 
     def simplify(code: int) -> int:
         return code//100
