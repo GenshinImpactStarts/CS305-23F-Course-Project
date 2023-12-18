@@ -28,11 +28,30 @@ class HeadBuilder:
         # optional fields
 
 class Headers:
+    class AcceptLanguage:
+        def __init__(self,header):
+            self.top_priority=None
+            self.possible_options=[] # [(lang, weight),(lang, weight),and so on] by weight DESC
+            languages = header.split(',')
+            if header==None:pass
+            for language in languages:
+                parts = language.strip().split(';')
+                lang = parts[0].strip()
+                if len(parts) > 1:
+                    weight = float(parts[1].split('=')[1])
+                else:
+                    weight = 1.0
+                    
+                if self.top_priority is None or weight > self.top_priority[1]:
+                    self.top_priority = (lang, weight)
+                self.possible_options.append((lang, weight))
+            self.possible_options.sort(key=lambda x: x[1], reverse=True)
+
     def __init__(self):
         self.accept = None
         self.accept_charset = None
         self.accept_encoding = None
-        self.accept_language = None
+        self.accept_language = Headers.AcceptLanguage(None)
         self.authorization = None
         self.cache_control = None
         self.connection = None
@@ -72,7 +91,7 @@ class Header:
     def parse_request_line(request):
         lines = request.split('\r\n')
         request_line = lines[0]
-        method, path, version = request_line.split(' ')
+        method, path, version = [v.strip() for v in request_line.split(' ')]
         return method, path, version
     
     # parse the others!
@@ -89,7 +108,11 @@ class Header:
             if line == '':
                 break
             key, value = line.split(': ', 1)
-            setattr(headers, http_header_to_python(key.strip()), value.strip())
+            if(http_header_to_python(key.strip())=='accept_charset'):
+                headers.accept_charset=[v.strip() for v in value.split(',')]
+            elif(http_header_to_python(key.strip())=='accept_language'):
+                headers.accept_language=Headers.AcceptLanguage(value.strip())
+            else:setattr(headers, http_header_to_python(key.strip()), value.strip())
 
         return headers,body_part
     
