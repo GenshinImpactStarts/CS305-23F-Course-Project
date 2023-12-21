@@ -1,12 +1,14 @@
 import io
 import os
+import random
+import string
 import time
 import socket
 from .status_code import StatusCode
 from .threading_tcp import ThreadingTCP
 from http_content import header
 from http_content.body import Body
-
+import datetime
 __all__ = 'Server',
 
 
@@ -23,12 +25,48 @@ class Server(ThreadingTCP):
         header_pram, body = header.Header.parse_request_headers(request)
         if (method == " HEAD"):
             response = 200
-        if header_pram.authorization:
-            if header_pram.authorization.startswith("Basic "):
-                authData = header_pram.split(" ", -1)
-                username = authData.split(':')[0]
-                password = authData.split(':')[1]
-            pass                                        # 检查用户名和密码是否匹配
+        if header_pram.authorization or header_pram.cookie:
+            test_cookie=False
+            
+            if header_pram.cookie:
+                cookie_params = header_pram.cookie.split("; ")
+                cookie_dict={}
+                for param in cookie_params:
+                    cookie_key = param.split("=")[0].lower()
+                    cookie_value = param.split("=")[1].strip()
+                    cookie_dict[cookie_key] = cookie_value
+                if 'sid' in cookie_dict:
+                    cookie_path='/cookieDatabase/'
+                    cookie_path=cookie_path+cookie_dict['sid']
+                    cookie_path
+                    try:
+                        with open(cookie_path,'r') as file:
+                            cookie_content=file.read()
+                            cookie_dict_local={}
+                            for param in cookie_params:
+                                cookie_key = param.split("=")[0].lower()
+                                cookie_value = param.split("=")[1].strip()
+                                cookie_dict_local[cookie_key] = cookie_value
+                        ddl=cookie_dict_local.get('Expires')
+                        if ddl is not None and ddl>datetime.datetime.now():
+                            username=cookie_dict_local.get('username')
+                            password=cookie_dict_local.get('password')
+                        else:
+                            test_cookie=True
+                            os.remove(cookie_path)
+                    except FileNotFoundError:
+                        test_cookie=True
+                else:
+                    test_cookie=True
+            
+            if test_cookie and header_pram.authorization:
+                if header_pram.authorization.startswith("Basic "):
+                    authData = header_pram.split(" ", -1)
+                    username = authData.split(':')[0]
+                    password = authData.split(':')[1]
+                pass                                        # 检查用户名和密码是否匹配
+                    
+            
         else:
             pass
             response = 401
@@ -86,6 +124,7 @@ class Server(ThreadingTCP):
             if user_post == username:
                 index = Origin_path.index("path=") + len("path=")
                 access_path = path[index:-1]
+
                 if os.path.exists(access_path):
                     if upload_or_del == "/upload":  # upload the document
                         Body.recv_post_file(
@@ -102,3 +141,27 @@ class Server(ThreadingTCP):
                 response = 403
         else:
             response = 400
+    
+    def set_cookie(username,password,length=32,ttl_in_day=3):
+        cookie_respond=[]
+        characters = string.ascii_letters + string.digits
+        sid = ''.join(random.choice(characters) for _ in range(length))
+        cookie_respond.append(f'SID={sid};')
+        clear_time = datetime.datetime.now()
+        ttl= datetime.timedelta(days=ttl_in_day)
+        clear_time=clear_time+ttl
+        cookie_expires_str = clear_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        cookie_respond.append(f'Expires={cookie_expires_str};')
+        cookie_respond.append(f'Path=\\;Secure;HttpOnly')
+        
+        cookie_path='/cookieDatabase/'
+        cookie_path=cookie_path+sid
+        local_info=[]
+        local_info.append(f'SID={sid}')
+        local_info.append(f'username={username};\r\n')
+        local_info.append(f'password={password};\r\n')
+        local_info.append(f'Expires={clear_time};\r\n')         # in datetime format
+        
+        with open(cookie_path, "w") as file:
+            file.write(''.join(local_info))
+        return ''.join(cookie_respond)
