@@ -15,56 +15,59 @@ class Server(ThreadingTCP):
     def handle(self, conn: socket.socket, addr: tuple):
         with conn:
             temp=''
+            header_class=header.Header 
             while True:
                 temp+=conn.recv(2048)
                 testComplete,response = self.handle_request(temp)
                 if (testComplete):
                     temp=''
+                
             conn.close()
 
     # return None when need to close the connection
-    def handle_request(self, request: bytes) -> str:
+    def handle_request(self, request: bytes,header_class) :     #the first pram is {0(not complete),1(keep alive),2(close)}
         if (not request.find(b'\r\n\r\n')):
-            return False,None
+            return 0
         else:
             method, path, version = header.Header.parse_request_line(request)
             header_pram, body = header.Header.parse_request_headers(request)
-            if (header_pram.content_length is not None) ^ (path.find('chunked=')):
+            if (header_pram.content_length is not None) ^ (path.find('chunked=') and not path.find('chunked=0')):
                 if (header_pram.content_length is not None):
                     if len(body)<int(header_pram.content_length):
-                        return False,None
+                        return 0
                 else:
                     if (not body.find(b'\r\n')):
-                        return False,None
+                        return 0
             else:
-                response = 400
+                header_class.get_headbuilder(self).status_code =400
+            
             if (method == " HEAD"):
-                response = 200
+                header_class.get_headbuilder(self).status_code = 200
             else:
-                response, username, password = self.load_handle(header_pram)
-                if response/100 == 2:
+                #check identity
+                header.get_headbuilder(self).status_code, username, password = self.__load_handle(header_pram)
+                if header_class.get_headbuilder(self).status_code /100 != 4:
                     if method == "GET":
-                        response, response_data = self.__get_method(
-                            self, header_pram, path, username, password)
+                        response_data = self.__get_method(
+                            self, header_pram, path, username, password,header_class.get_headbuilder)
 
                     elif method == "POST":
-                        response, response_data = self.__post_method(
-                            self, header_pram, path, username, password)
+                        response_data = self.__post_method(
+                            self, header_pram,body, path, username, password,password,header_class.get_headbuilder)
                     else:
-                        pass
+                        header.get_headbuilder(self).status_code = 405
                 else:
                     pass
-                
             if header_pram.connection == 'close':
-                pass
+                return 2
 
     # return the status_code and response_data
-    def __get_method(self, header_pram, path, username, password):
+    def __get_method(self, header_pram, path, username, password,header_builder:header.HeadBuilder):
         access_path = path.split("?")[0]
         SusTech_code = path.split("?")[1]
-        filePath = "/data/"+path                                # 还没处理
+        filePath = "./data/"+access_path                                # 还没处理
         if ".." in filePath:  # prevent attack
-            return 403
+            header_builder.status_code=403
         elif os.path.exists(filePath):
             last_modified_time = time.gmtime(os.path.getmtime(path))
             try:
@@ -73,7 +76,7 @@ class Server(ThreadingTCP):
             except ValueError:
                 pass
             if client_request_time >= last_modified_time:
-                return 304
+                header_builder.status_code= 403
             # etag =???????????????????????????????????????????????????; how to generate etag
             # if header_pram.if_none_match == etag:
             #    return 304
@@ -88,11 +91,11 @@ class Server(ThreadingTCP):
                 file_content = Body.get_file(filePath)
                 response_data = file_content
 
-            return 200, response_data
+            header_builder.status_code =200
         else:
-            return 404
+            header_builder.status_code =400
 
-    def __post_method(self, header_pram, path, username, password):
+    def __post_method(self, header_pram,body, path, username, password,header_builder:header.HeadBuilder):
         upload_or_del = path.split("?")[0]
         Origin_path = path.split("?")[1].strip()  # ex:path=/11912113/abc.py
         if ("path=/" in Origin_path):
@@ -100,25 +103,24 @@ class Server(ThreadingTCP):
             if user_post == username:
                 index = Origin_path.index("path=") + len("path=")
                 access_path = path[index:-1]
-
                 if os.path.exists(access_path):
                     if upload_or_del == "/upload":  # upload the document
                         Body.recv_post_file(
-                            request_data, access_path, "uploaded_file")
+                            body, access_path, "uploaded_file")
                     elif upload_or_del == "/delete":  # delete the document
                         if os/path.exists(access_path):
                             try:
                                 os.remove(access_path)
                             except Exception as e:
-                                response = 500
+                                header_builder.status_code
                 else:
-                    response = 404
+                    header_builder.status_code = 404
             else:
-                response = 403
+                header_builder.status_code = 403
         else:
-            response = 400
+            header_builder.status_code = 400
 
-    def load_handle(header_pram):
+    def __load_handle(header_pram):
         response = 200
         if header_pram.authorization or header_pram.cookie:
             test_cookie = False
@@ -157,9 +159,15 @@ class Server(ThreadingTCP):
                         authData = header_pram.split(" ", -1)
                         username = authData.split(':')[0]
                         password = authData.split(':')[1]
+                        with open('./user_data/user_info/userDatabase.txt', 'r') as file:
+                            file_contents = file.read()
+                            search_string = username+'/'+password+';\r\n'
+                            if search_string in file_contents:
+                                response=200
+                            else:
+                                response=401
                     else:
                         response = 401                                        # 检查用户名和密码是否匹配
-
                 else:
                     pass
                     response = 401
