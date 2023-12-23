@@ -26,6 +26,7 @@ class HeadBuilder:
         self.date = None
         self.age = None
         self.keep_alive = None
+        self.set_cookie = None
         # optional fields
 
 
@@ -133,7 +134,7 @@ class Header:
                 f"Content-Type: {self.head_builder.content_type}\r\n"
             )  # maybe 'text/html; charset=utf-8'
         else:
-            string_builder.append(f"Content-Type: text/html; charset=utf-8\r\n")
+            pass # string_builder.append(f"Content-Type: text/html; charset=utf-8\r\n")
 
         if self.head_builder.keep_alive is not None:
             string_builder.append(
@@ -143,13 +144,15 @@ class Header:
             pass  # Who cares?
 
         if self.head_builder.connection is not None:
-            if self.head_builder.connection == 0:
+            if self.head_builder.connection == "close":
                 string_builder.append(f"Connection: close\r\n")
-            if self.head_builder.connection == 1:
+            if self.head_builder.connection == "Keep-Alive":
                 string_builder.append(f"Connection: Keep-Alive\r\n")
         else:
-            string_builder.append(f"Connection: Keep-Alive\r\n")
-
+            pass #string_builder.append(f"Connection: Keep-Alive\r\n")
+        
+        
+        
         if self.head_builder.age is not None:
             string_builder.append(f"Age: {self.head_builder.age}\r\n")
         else:
@@ -163,6 +166,11 @@ class Header:
                 "%a, %d %b %Y %H:%M:%S GMT"
             )  # Not Sure!
             string_builder.append(f"Date: {http_date}\r\n")
+
+        if self.head_builder.set_cookie is not None:
+            string_builder.append(f"Set-Cookie: {self.head_builder.set_cookie}\r\n")
+        else:
+            pass 
 
         if self.head_builder.x_cache_info is not None:
             string_builder.append(f"X-Cache-Info: {self.head_builder.x_cache_info}\r\n")
