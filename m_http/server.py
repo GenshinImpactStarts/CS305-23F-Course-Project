@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import string
 import time
 import socket
@@ -65,7 +66,7 @@ class Server(ThreadingTCP):
     def __get_method(self, header_pram, path, username, password,header_builder:header.HeadBuilder):
         access_path = path.split("?")[0]
         SusTech_code = path.split("?")[1]
-        filePath = "./data/"+access_path                                # 还没处理
+        filePath = "./data/"+access_path                                
         if ".." in filePath:  # prevent attack
             header_builder.status_code=403
         elif os.path.exists(filePath):
@@ -77,10 +78,6 @@ class Server(ThreadingTCP):
                 pass
             if client_request_time >= last_modified_time:
                 header_builder.status_code= 403
-            # etag =???????????????????????????????????????????????????; how to generate etag
-            # if header_pram.if_none_match == etag:
-            #    return 304
-
             if os.path.isdir(filePath):
                 if "SUSTech-HTTP=1" in SusTech_code:
                     response_data = Body.get_folder(filePath, return_html=True)
@@ -94,20 +91,23 @@ class Server(ThreadingTCP):
             header_builder.status_code =200
         else:
             header_builder.status_code =400
+        return response_data
 
     def __post_method(self, header_pram,body, path, username, password,header_builder:header.HeadBuilder):
         upload_or_del = path.split("?")[0]
         Origin_path = path.split("?")[1].strip()  # ex:path=/11912113/abc.py
-        if ("path=/" in Origin_path):
-            user_post = Origin_path.split("/")[1]
+        pattern = r'path=(\S+)'
+        match = re.search(pattern, Origin_path)
+        if match:
+            result = match.group(1)
+            user_post = result.split("/")[0]
             if user_post == username:
-                index = Origin_path.index("path=") + len("path=")
-                access_path = path[index:-1]
+                access_path ='./data'+result
                 if os.path.exists(access_path):
-                    if upload_or_del == "/upload":  # upload the document
+                    if upload_or_del == "/upload":          # upload the document
                         Body.recv_post_file(
                             body, access_path, "uploaded_file")
-                    elif upload_or_del == "/delete":  # delete the document
+                    elif upload_or_del == "/delete":        # delete the document
                         if os/path.exists(access_path):
                             try:
                                 os.remove(access_path)
@@ -119,8 +119,9 @@ class Server(ThreadingTCP):
                 header_builder.status_code = 403
         else:
             header_builder.status_code = 400
+        return None
 
-    def __load_handle(header_pram):
+    def __load_handle(self,header_pram,header_builder):
         response = 200
         if header_pram.authorization or header_pram.cookie:
             test_cookie = False
@@ -161,9 +162,10 @@ class Server(ThreadingTCP):
                         password = authData.split(':')[1]
                         with open('./user_data/user_info/userDatabase.txt', 'r') as file:
                             file_contents = file.read()
-                            search_string = username+'/'+password+';\r\n'
+                            search_string = username+'/'+password+';'
                             if search_string in file_contents:
                                 response=200
+                                header_builder.set_cookie=self.__set_cookie(username,password)
                             else:
                                 response=401
                     else:
@@ -176,7 +178,7 @@ class Server(ThreadingTCP):
 
         return response, username, password
 
-    def set_cookie(username, password, length=32, ttl_in_day=3):
+    def __set_cookie(self,username, password, length=32, ttl_in_day=3):
         cookie_respond = []
         characters = string.ascii_letters + string.digits
         sid = ''.join(random.choice(characters) for _ in range(length))
