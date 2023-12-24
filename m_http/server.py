@@ -15,18 +15,19 @@ __all__ = 'Server',
 class Server(ThreadingTCP):
     def handle(self, conn: socket.socket, addr: tuple):
         with conn:
-            temp=''
-            header_class=header.Header 
+            temp = ''
+            header_class = header.Header
             while True:
-                temp+=conn.recv(2048)
-                testComplete,response = self.handle_request(temp)
-                if (testComplete):
-                    temp=''
-                
+                temp += conn.recv(2048)
+                testComplete, response = self.handle_request(temp)
+                if (testComplete!=0):
+                    temp = ''
+                if (testComplete==2):
+                    break
             conn.close()
 
-    # return None when need to close the connection
-    def handle_request(self, request: bytes,header_class) :     #the first pram is {0(not complete),1(keep alive),2(close)}
+    # the first pram is {0(not complete),1(keep alive),2(close)}
+    def handle_request(self, request: bytes, header_class):
         if (not request.find(b'\r\n\r\n')):
             return 0
         else:
@@ -34,41 +35,43 @@ class Server(ThreadingTCP):
             header_pram, body = header.Header.parse_request_headers(request)
             if (header_pram.content_length is not None) ^ (path.find('chunked=') and not path.find('chunked=0')):
                 if (header_pram.content_length is not None):
-                    if len(body)<int(header_pram.content_length):
+                    if len(body) < int(header_pram.content_length):
                         return 0
                 else:
                     if (not body.find(b'\r\n')):
                         return 0
             else:
-                header_class.get_headbuilder(self).status_code =400
-            
+                header_class.get_headbuilder(self).status_code = 400
+
             if (method == " HEAD"):
                 header_class.get_headbuilder(self).status_code = 200
             else:
-                #check identity
-                header.get_headbuilder(self).status_code, username, password = self.__load_handle(header_pram)
-                if header_class.get_headbuilder(self).status_code /100 != 4:
+                # check identity
+                header.get_headbuilder(
+                    self).status_code, username, password = self.__load_handle(header_pram)
+                if header_class.get_headbuilder(self).status_code / 100 != 4:
                     if method == "GET":
                         response_data = self.__get_method(
-                            self, header_pram, path, username, password,header_class.get_headbuilder)
+                            self, header_pram, path, username, password, header_class.get_headbuilder)
 
                     elif method == "POST":
                         response_data = self.__post_method(
-                            self, header_pram,body, path, username, password,password,header_class.get_headbuilder)
+                            self, header_pram, body, path, username, password, password, header_class.get_headbuilder)
                     else:
                         header.get_headbuilder(self).status_code = 405
                 else:
                     pass
+            
             if header_pram.connection == 'close':
                 return 2
 
     # return the status_code and response_data
-    def __get_method(self, header_pram, path, username, password,header_builder:header.HeadBuilder):
+    def __get_method(self, header_pram, path, username, password, header_builder: header.HeadBuilder):
         access_path = path.split("?")[0]
         SusTech_code = path.split("?")[1]
-        filePath = "./data/"+access_path                                
+        filePath = "./data/"+access_path
         if ".." in filePath:  # prevent attack
-            header_builder.status_code=403
+            header_builder.status_code = 403
         elif os.path.exists(filePath):
             last_modified_time = time.gmtime(os.path.getmtime(path))
             try:
@@ -77,7 +80,7 @@ class Server(ThreadingTCP):
             except ValueError:
                 pass
             if client_request_time >= last_modified_time:
-                header_builder.status_code= 403
+                header_builder.status_code = 403
             if os.path.isdir(filePath):
                 if "SUSTech-HTTP=1" in SusTech_code:
                     response_data = Body.get_folder(filePath, return_html=True)
@@ -88,12 +91,12 @@ class Server(ThreadingTCP):
                 file_content = Body.get_file(filePath)
                 response_data = file_content
 
-            header_builder.status_code =200
+            header_builder.status_code = 200
         else:
-            header_builder.status_code =400
+            header_builder.status_code = 400
         return response_data
 
-    def __post_method(self, header_pram,body, path, username, password,header_builder:header.HeadBuilder):
+    def __post_method(self, header_pram, body, path, username, password, header_builder: header.HeadBuilder):
         upload_or_del = path.split("?")[0]
         Origin_path = path.split("?")[1].strip()  # ex:path=/11912113/abc.py
         pattern = r'path=(\S+)'
@@ -102,7 +105,7 @@ class Server(ThreadingTCP):
             result = match.group(1)
             user_post = result.split("/")[0]
             if user_post == username:
-                access_path ='./data'+result
+                access_path = './data'+result
                 if os.path.exists(access_path):
                     if upload_or_del == "/upload":          # upload the document
                         Body.recv_post_file(
@@ -121,7 +124,7 @@ class Server(ThreadingTCP):
             header_builder.status_code = 400
         return None
 
-    def __load_handle(self,header_pram,header_builder):
+    def __load_handle(self, header_pram, header_builder):
         response = 200
         if header_pram.authorization or header_pram.cookie:
             test_cookie = False
@@ -164,10 +167,11 @@ class Server(ThreadingTCP):
                             file_contents = file.read()
                             search_string = username+'/'+password+';'
                             if search_string in file_contents:
-                                response=200
-                                header_builder.set_cookie=self.__set_cookie(username,password)
+                                response = 200
+                                header_builder.set_cookie = self.__set_cookie(
+                                    username, password)
                             else:
-                                response=401
+                                response = 401
                     else:
                         response = 401                                        # 检查用户名和密码是否匹配
                 else:
@@ -178,7 +182,7 @@ class Server(ThreadingTCP):
 
         return response, username, password
 
-    def __set_cookie(self,username, password, length=32, ttl_in_day=3):
+    def __set_cookie(self, username, password, length=32, ttl_in_day=3):
         cookie_respond = []
         characters = string.ascii_letters + string.digits
         sid = ''.join(random.choice(characters) for _ in range(length))
