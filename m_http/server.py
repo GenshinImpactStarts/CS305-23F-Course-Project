@@ -22,6 +22,7 @@ class Server(ThreadingTCP):
                 testComplete, response = self.handle_request(temp)
                 if (testComplete!=0):
                     temp = ''
+                    conn.send(response.encode('utf-8'))
                 if (testComplete==2):
                     break
             conn.close()
@@ -43,27 +44,29 @@ class Server(ThreadingTCP):
             else:
                 header_class.get_headbuilder(self).status_code = 400
 
+            response_body=None
             if (method == " HEAD"):
                 header_class.get_headbuilder(self).status_code = 200
+                #response=header_class.generate_response_headers(self)
             else:
                 # check identity
                 header.get_headbuilder(
                     self).status_code, username, password = self.__load_handle(header_pram)
                 if header_class.get_headbuilder(self).status_code / 100 != 4:
                     if method == "GET":
-                        response_data = self.__get_method(
+                        response_body = self.__get_method(
                             self, header_pram, path, username, password, header_class.get_headbuilder)
 
                     elif method == "POST":
-                        response_data = self.__post_method(
+                        response_body = self.__post_method(
                             self, header_pram, body, path, username, password, password, header_class.get_headbuilder)
                     else:
                         header.get_headbuilder(self).status_code = 405
-                else:
-                    pass
             
+            response = header_class.generate_response_headers(self) +'\r\n'+response_body
             if header_pram.connection == 'close':
-                return 2
+                return 2,response
+            return 1,response
 
     # return the status_code and response_data
     def __get_method(self, header_pram, path, username, password, header_builder: header.HeadBuilder):
@@ -83,18 +86,18 @@ class Server(ThreadingTCP):
                 header_builder.status_code = 403
             if os.path.isdir(filePath):
                 if "SUSTech-HTTP=1" in SusTech_code:
-                    response_data = Body.get_folder(filePath, return_html=True)
+                    response_body = Body.get_folder(filePath, return_html=True)
                 else:
-                    response_data = Body.get_folder(
+                    response_body = Body.get_folder(
                         filePath, return_html=False)
             elif os.path.isfile(filePath):
                 file_content = Body.get_file(filePath)
-                response_data = file_content
+                response_body = file_content
 
             header_builder.status_code = 200
         else:
             header_builder.status_code = 400
-        return response_data
+        return response_body
 
     def __post_method(self, header_pram, body, path, username, password, header_builder: header.HeadBuilder):
         upload_or_del = path.split("?")[0]
