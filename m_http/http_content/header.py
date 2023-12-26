@@ -38,13 +38,14 @@ class HeadBuilder:
 class Headers:
     class AcceptLanguage:
         def __init__(self, header):
+            if header==None:
+                return
             self.top_priority = None
             self.possible_options = (
                 []
             )  # [(lang, weight),(lang, weight),and so on] by weight DESC
             languages = header.split(",")
-            if header == None:
-                pass
+           
             for language in languages:
                 parts = language.strip().split(";")
                 lang = parts[0].strip()
