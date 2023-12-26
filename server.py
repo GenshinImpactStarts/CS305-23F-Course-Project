@@ -1,6 +1,5 @@
 import m_http
 import argparse
-import threading
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -9,10 +8,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     addr = (args.ip, args.port)
 
-    try:
-        s = m_http.Server(addr)
-        s.start()
-        threading.Event().wait()
-    except KeyboardInterrupt:
-        s.stop()
+    s = m_http.Server(addr)
+    s.start()
+    q = input('Enter (q) to quit:')
+    while q != 'q' and q != 'Q':
+        q = input('Enter (q) to quit:')
+    s.stop()
     print(s.connection_cnt())
