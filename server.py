@@ -1,10 +1,18 @@
 import m_http
-from time import sleep
+import argparse
+import threading
 
 if __name__ == '__main__':
-    s = m_http.Server(('127.0.0.1', 65432))
-    s.start()
-    sleep(5)
-    print(s.connection_cnt())
-    s.stop()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--ip', help='IP address')
+    parser.add_argument('-p', '--port', type=int, help='Port number')
+    args = parser.parse_args()
+    addr = (args.ip, args.port)
+
+    try:
+        s = m_http.Server(addr)
+        s.start()
+        threading.Event().wait()
+    except KeyboardInterrupt:
+        s.stop()
     print(s.connection_cnt())
