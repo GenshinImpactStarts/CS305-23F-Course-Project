@@ -99,6 +99,8 @@ class Header:
 
     # only parse the Request-Line!
     def parse_request_line(request):
+        if isinstance(request, bytes):
+            request = request.decode('utf-8')
         lines = request.split("\r\n")
         request_line = lines[0]
         method, path, version = [v.strip() for v in request_line.split(" ")]
@@ -107,6 +109,8 @@ class Header:
     # parse the others!
 
     def parse_request_headers(request):
+        if isinstance(request, bytes):
+            request = request.decode('utf-8')
         if "\r\n\r\n" in request:
             header_part, body_part = request.split("\r\n\r\n", 1)
         else:
