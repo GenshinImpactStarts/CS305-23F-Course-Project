@@ -1,5 +1,6 @@
 __all__ = ("Client",)
 
+import mimetypes
 import socket
 import os
 
@@ -9,7 +10,7 @@ class Client:
         self.port = port
         self.cookies = {}
 
-    def send_request(self, method, uri, body=None, headers=None, file_path=None):
+    def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk = False):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
@@ -21,7 +22,7 @@ class Client:
                     print(f"Address-related error connecting to {self.host}:{self.port}")
                     return
 
-                if file_path:
+                #if file_path:
                     with open(file_path, 'rb') as file:
                         body = file.read()
                     if headers is None:
@@ -42,34 +43,59 @@ class Client:
                     for header, value in headers.items():
                         request += f"{header}: {value}\r\n"
 
-                # Handle POST
-                if body and method == "POST":
-                    request += f"Content-Length: {len(body)}\r\n\r\n"
-                    if isinstance(body, str):
-                        body = body.encode()                
+                if isChunk == True:
+                    if method == "POST" and file_path:
+                        mime_type, _ = mimetypes.guess_type(file_path)
+                        request += f"Content-Type: {mime_type or 'application/octet-stream'}\r\n"
+                        request += "Transfer-Encoding: chunked\r\n\r\n"
+                        s.sendall(request.encode())
+                        with open(file_path, 'rb') as file:
+                            while True:
+                                chunk = file.read(4096)
+                                if isinstance(chunk, str):
+                                    chunk = chunk.encode()
+                                if not chunk:
+                                    break
+                                s.sendall(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
+                        s.sendall(b"0\r\n\r\n")
+                    else:
+                        if body:
+                            request += f"Content-Length: {len(body)}\r\n\r\n"
+                            if isinstance(body, str):
+                                body = body.encode()
+                            s.sendall(request.encode() + body)
+                        else:
+                            request += "\r\n"
+                            s.sendall(request.encode())
                 else:
-                    request += "\r\n"
+                    # Handle POST
+                    if body and method == "POST":
+                        request += f"Content-Length: {len(body)}\r\n\r\n"
+                        if isinstance(body, str):
+                            body = body.encode()                
+                    else:
+                        request += "\r\n"
 
-                try:
-                    s.sendall(request.encode() + (body if body else b'')) # send msg
-                except socket.error as e:
-                    print(f"Error sending request: {e}")
-                    return
+                    try:
+                        s.sendall(request.encode() + (body if body else b'')) # send msg
+                    except socket.error as e:
+                        print(f"Error sending request: {e}")
+                        return
 
-                # Handle response
-                try:
-                    response = self.receive_response(s)
-                    print("Response:\n", response)
-                except socket.error as e:
-                    print(f"Error receiving response: {e}")
-                    return
+                    # Handle response
+                    try:
+                        response = self.receive_response(s)
+                        print("Response:\n", response)
+                    except socket.error as e:
+                        print(f"Error receiving response: {e}")
+                        return
 
-                # Process response
-                status_code, header_dict, body = self.parse_response(response)
-                if method == "GET":
-                    self.handle_get_response(status_code, uri, body)
-                if "Set-Cookie" in header_dict:
-                    self.store_cookies(header_dict["Set-Cookie"])
+                    # Process response
+                    status_code, header_dict, body = self.parse_response(response)
+                    if method == "GET":
+                        self.handle_get_response(status_code, uri, body)
+                    if "Set-Cookie" in header_dict:
+                        self.store_cookies(header_dict["Set-Cookie"])
 
         except socket.error as e:
             print(f"Socket error: {e}")
