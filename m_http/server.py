@@ -29,8 +29,8 @@ class Server(ThreadingTCP):
             temp = b''
             header_class = header.Header()
             while True:
-                receive= conn.recv(2048)
-                if receive ==b'':
+                receive = conn.recv(2048)
+                if receive == b'':
                     break
                 temp += receive
                 testComplete, response = self.handle_request(
@@ -79,8 +79,9 @@ class Server(ThreadingTCP):
                 else:
                     header.get_headbuilder().status_code = 405
 
-            header_class.get_headbuilder().content_length=len(response_body)
-            response = header_class.generate_response_headers().encode('utf-8') +b'\r\n'+response_body
+            header_class.get_headbuilder().content_length = len(response_body)
+            response = header_class.generate_response_headers().encode('utf-8') + \
+                b'\r\n'+response_body
             if header_pram.connection == 'close':
                 return 2, response
             return 1, response
@@ -95,7 +96,7 @@ class Server(ThreadingTCP):
             SusTech_code = path_part[1]
 
         filePath = os.path.join(self.current_file_path, "data", access_path)
-        filePath=filePath.replace('\\','/')
+        filePath = filePath.replace('\\', '/')
         try:
             if ".." in filePath:  # prevent attack
                 header_builder.status_code = 403
@@ -110,13 +111,12 @@ class Server(ThreadingTCP):
                     if client_request_time >= last_modified_time:
                         header_builder.status_code = 403
                 if os.path.isdir(filePath):
-                    if "SUSTech-HTTP=0" in SusTech_code:
-                        response_body = Body.get_folder(
-                            filePath, return_html=False)
-                        
+                    if path[-1] != '/':
+                        header_builder.status_code = 301
+                        header_builder.location = path+'/'
                     else:
-                        response_body = Body.get_folder(filePath, return_html=True)
-                        
+                        response_body = Body.get_folder(
+                            filePath, return_html=("SUSTech-HTTP=0" not in SusTech_code))
                 elif os.path.isfile(filePath):
                     file_content = Body.get_file(filePath)
                     response_body = file_content
@@ -141,7 +141,7 @@ class Server(ThreadingTCP):
                 if user_post == username:
                     access_path = os.path.join(
                         self.current_file_path, 'data', result)
-                    access_path=access_path.replace('\\','/')
+                    access_path = access_path.replace('\\', '/')
                     if os.path.exists(access_path):
                         if upload_or_del == "/upload":          # upload the document
                             Body.recv_post_file(
