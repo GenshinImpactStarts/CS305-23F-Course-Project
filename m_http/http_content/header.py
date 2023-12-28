@@ -33,6 +33,7 @@ class HeadBuilder:
         self.keep_alive = None
         self.set_cookie = None
         self.transfer_encoding = None
+        self.location = None
         # optional fields
 
 
