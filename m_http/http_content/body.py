@@ -76,15 +76,12 @@ class Body:
             html_list.append(f'<li><a href="./">./</a></li>'.encode())
             html_list.append(f'<li><a href="../">../</a></li>'.encode())
             for file_name in os.listdir(path):
-                file_path = os.path.join(path, file_name)
                 file_name = file_name.replace("&", "&amp;").replace(
                     "<", "&lt;").replace(">", "&gt;")
-                file_path = file_path.replace("&", "&amp;").replace(
-                    "<", "&lt;").replace(">", "&gt;")
-                if os.path.isdir(file_path):
-                    file_name += '/'
+                if os.path.isdir(file_name):
+                    file_name = file_name+'/'
                 html_list.append(
-                    f'<li><a href="{file_path}">{file_name}</a></li>'.encode())
+                    f'<li><a href="{file_name}">{file_name}</a></li>'.encode())
             html_list.append(b'</ul>')
             html_list.append(b'<hr>')
             html_list.append(b'</body>')
@@ -93,7 +90,7 @@ class Body:
             result = b'\n'.join(html_list)
         else:
             result = str(['./', '../']+[name + '/' if os.path.isdir(name)
-                         else name for name in os.listdir(path)])
+                         else name for name in os.listdir(path)]).encode()
         if chunked:
             result = Body.__get_chunked_content(result)
         return result
