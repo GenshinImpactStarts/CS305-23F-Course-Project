@@ -95,6 +95,7 @@ class Server(ThreadingTCP):
             SusTech_code = path_part[1]
 
         filePath = os.path.join(self.current_file_path, "data", access_path)
+        filePath=filePath.replace('\\','/')
         try:
             if ".." in filePath:  # prevent attack
                 header_builder.status_code = 403
@@ -140,6 +141,7 @@ class Server(ThreadingTCP):
                 if user_post == username:
                     access_path = os.path.join(
                         self.current_file_path, 'data', result)
+                    access_path=access_path.replace('\\','/')
                     if os.path.exists(access_path):
                         if upload_or_del == "/upload":          # upload the document
                             Body.recv_post_file(
