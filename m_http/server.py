@@ -25,22 +25,20 @@ class Server(ThreadingTCP):
     current_file_path = '.'
 
     def handle(self, conn: socket.socket, addr: tuple):
-        with conn:
-            temp = b''
-            header_class = header.Header()
-            while True:
-                receive = conn.recv(2048)
-                if receive == b'':
-                    break
-                temp += receive
-                testComplete, response = self.handle_request(
-                    temp, header_class)
-                if (testComplete != 0):
-                    temp = b''
-                    conn.send(response)
-                if (testComplete == 2):
-                    break
-            conn.close()
+        temp = b''
+        header_class = header.Header()
+        while True:
+            receive = conn.recv(2048)
+            if receive == b'':
+                break
+            temp += receive
+            testComplete, response = self.handle_request(
+                temp, header_class)
+            if (testComplete != 0):
+                temp = b''
+                conn.send(response)
+            if (testComplete == 2):
+                break
 
     # the first pram is {0(not complete),1(keep alive),2(close)}
     def handle_request(self, request: bytes, header_class: header.Header):
