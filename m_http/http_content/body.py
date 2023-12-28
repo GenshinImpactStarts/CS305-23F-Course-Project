@@ -58,6 +58,8 @@ class Body:
         return result
 
     def get_folder(path: str, return_html: bool = False, chunked: bool = False) -> bytes:
+        if path[-1] != '/':
+            raise StatusCode(301)
         if return_html:
             html_list = []
             html_list.append(
