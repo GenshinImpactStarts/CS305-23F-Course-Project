@@ -32,6 +32,7 @@ class HeadBuilder:
         self.age = None
         self.keep_alive = None
         self.set_cookie = None
+        self.transfer_encoding = None
         # optional fields
 
 
@@ -75,6 +76,7 @@ class Headers:
         self.if_none_match = None
         self.referer = None
         self.user_agent = None
+        self.transfer_encoding = None
 
 
 def http_header_to_python(header):
