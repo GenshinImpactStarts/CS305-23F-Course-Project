@@ -78,7 +78,7 @@ class Body:
             for file_name in os.listdir(path):
                 file_name = file_name.replace("&", "&amp;").replace(
                     "<", "&lt;").replace(">", "&gt;")
-                if os.path.isdir(file_name):
+                if os.path.isdir(os.path.join(path, file_name)):
                     file_name = file_name+'/'
                 html_list.append(
                     f'<li><a href="{file_name}">{file_name}</a></li>'.encode())
