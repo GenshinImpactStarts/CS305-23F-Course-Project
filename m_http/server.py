@@ -29,7 +29,10 @@ class Server(ThreadingTCP):
             temp = b''
             header_class = header.Header()
             while True:
-                temp += conn.recv(2048)
+                receive= conn.recv(2048)
+                if receive ==b'':
+                    break
+                temp += receive
                 testComplete, response = self.handle_request(
                     temp, header_class)
                 if (testComplete != 0):
