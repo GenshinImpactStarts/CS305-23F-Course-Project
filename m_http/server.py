@@ -123,16 +123,15 @@ class Server(ThreadingTCP):
                         header_builder.location = path+'/'
                     else:
                         if (("SUSTech-HTTP=0" not in SusTech_code)):
-                            header_builder='html'
+                            header_builder.content_type='html'
                         else:
-                            header_builder='txt'
+                            header_builder.content_type='txt'
                         response_body = Body.get_folder(
                             filePath, return_html=("SUSTech-HTTP=0" not in SusTech_code),chunked=need_chunk)
                 elif os.path.isfile(filePath):
-                    header_builder.content_type, header_builder.char_set = mimetypes.guess_type(filePath)
+                    header_builder.content_type, _ = mimetypes.guess_type(filePath)
                     file_content = Body.get_file(filePath,chunked=need_chunk)
                     response_body = file_content
-
                 header_builder.status_code = 200
             else:
                 header_builder.status_code = 400
