@@ -20,7 +20,7 @@ class Body:
         return result
 
     # range: (start: int, end: int)
-    # not check the validation of start and end
+    # only check out of range
     def get_part_file(path: str, range: tuple, chunked: bool = False) -> bytes:
         start, end = Body.__normailize_range(range, os.path.getsize(path))
         try:
@@ -35,7 +35,7 @@ class Body:
         return result
 
     # ranges: [(start: int, end: int), (start,end), ...] start or end is None when not provided
-    # not check the validation of start and end
+    # only check out of range
     def get_multi_part_file(path: str, ranges: list, boundary: str, chunked: bool = False) -> bytes:
         class FileWrapper:
             def __init__(self, path):
@@ -96,7 +96,7 @@ class Body:
         return result
 
     # range: (start: int, end: int)
-    # not check the validation of start and end
+    # only check out of range
     def get_part_folder(path: str, range: tuple, chunked: bool = False) -> bytes:
         result = Body.get_folder(path)
         start, end = Body.__normailize_range(range, len(result))
@@ -106,7 +106,7 @@ class Body:
         return result
 
     # ranges: [(start: int, end: int), (start,end), ...] start or end is None when not provided
-    # not check the validation of start and end
+    # only check out of range
     def get_multi_part_folder(path: str, ranges: list, boundary: str, chunked: bool = False) -> bytes:
         complete_html = Body.get_folder(path)
         def begin_func(): return
@@ -231,6 +231,8 @@ class Body:
                 end = total_len - 1
             else:
                 end = total_len - 1
+        if start < 0 or end < 0 or start >= total_len or end >= total_len or start > end:
+            raise StatusCode(416)
         return (start, end)
 
     def __get_chunked_content(content: bytes) -> bytes:
