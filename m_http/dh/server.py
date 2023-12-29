@@ -1,4 +1,5 @@
 import socket
+from ..http_content.header import Header
 from math import log10
 from .message import RequestType, RespondType
 from ..server import Server as HTTPServer
@@ -40,11 +41,22 @@ class Server(HTTPServer):
                     raise Exception()
                 session_key = int(session_key).to_bytes(Symm.KEY_LEN, 'big')
                 conn.send(self.ok_respond)
-                request = conn.recv(2048)
-                while request != '':
-                    request = Symm.decode(request, session_key)
-                    pass  # TODO: transfer to HTTPServer
-                    request = conn.recv(2048)
+                temp = b''
+                header_class = Header()
+                while True:
+                    receive = conn.recv(2048)
+                    receive = Symm.decode(receive, session_key)
+                    if receive == b'':
+                        break
+                    temp += receive
+                    testComplete, response = self.handle_request(
+                        temp, header_class)
+                    if (testComplete != 0):
+                        temp = b''
+                        response = Symm.encode(response)
+                        conn.send(response)
+                    if (testComplete == 2):
+                        break
             # unmatched request
             else:
                 raise Exception()
