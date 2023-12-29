@@ -9,7 +9,7 @@ In the upcoming tests, if the Authorization field is needed, use "client1" and "
 
 import requests
 
-URL = 'http://127.0.0.1:8000'
+URL = 'http://localhost:8080'
 
 '''
 The initial check is the head request, a fundamental job of the server is to respond to the request.
