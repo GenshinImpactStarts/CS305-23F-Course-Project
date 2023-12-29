@@ -10,7 +10,7 @@ class Client:
         self.port = port
         self.cookies = {}
 
-    def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
+    def compile_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
@@ -40,24 +40,31 @@ class Client:
                 if isChunk and file_path:
                     
                     request += "Transfer-Encoding: chunked\r\n\r\n"
-                    s.sendall(request.encode())
+                    temp = []
+                    temp.append(request.encode())
                     with open(file_path, 'rb') as file:
                         while True:
                             chunk = file.read(4096)
                             if not chunk:
                                 break
-                            s.sendall(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
-                    s.sendall(b"0\r\n\r\n")
+                            temp.append(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n") 
+                    temp.append(b"0\r\n\r\n")
+                    
+                    return b''.join(temp) # here TODO
+                
                 else:
-
+                    temp = []
                     if body:
                         request += f"Content-Length: {len(body)}\r\n\r\n"
+                        temp.append(request.encode)
                         if isinstance(body, str):
                             body = body.encode()
-                        s.sendall(request.encode() + body)
+                        temp.append(request.encode() + body)
                     else:
-                        request += "\r\n"
-                        s.sendall(request.encode())
+                        temp.append(b"\r\n")
+                        
+                    return b''.join(temp) # here TODO    
+                        
                         
                 # receive the response
                 try:
@@ -66,12 +73,50 @@ class Client:
                     print(f"Error receiving response: {e}")
                     return
                 # handle the response
+                
                 #TODO decode
                 self.handle_response(response_in_bytes,method,uri)
 
         except socket.error as e:
             print(f"Socket error: {e}")
+    
+    def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
+        request = self.compile_request(method, uri, body, headers, file_path, isChunk)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.connect((self.host, self.port))
+                except socket.timeout:
+                    print(f"Connection to {self.host}:{self.port} timed out.")
+                    return
+                except socket.gaierror:
+                    print(f"Address-related error connecting to {self.host}:{self.port}")
+                    return
+                s.sendall(request)
+                
+                try:
+                    response_headers,response_body = self.receive_response(s)
+                    print("Response:\n", response_headers+response_body)
+                except socket.error as e:
+                    print(f"Error receiving response: {e}")
+                    return
+
+                # 处理响应
+                status_code, header_dict, body = self.parse_response(response_headers)
+                if method == "GET":
+                    self.handle_get_response(status_code, uri, body)
+                if "Set-Cookie" in header_dict:
+                    self.store_cookies(header_dict["Set-Cookie"])
+                
+                
+                
+                
+                
+        except socket.error as e:
+            print(f"Socket error: {e}")
             
+                    
+                
     def receive_response_bytes(self,sock):        
         response=b''
         while True:
@@ -109,7 +154,7 @@ class Client:
 
         # check chunk
         if 'transfer-encoding' in response_headers.lower() and 'chunked' in response_headers.lower():
-            return response_headers + self.receive_chunked_response(sock)
+            return response_headers,self.receive_chunked_response(sock)
         else:
             response_body = ''
             while True:
@@ -117,9 +162,9 @@ class Client:
                 if not data:
                     break
                 response_body += data
-            return response_headers + response_body
+            return response_headers,response_body
         
-    #def receive_chunked_response(self, sock):
+    def receive_chunked_response(self, sock):
         response_body = ''
         while True:
             chunk_size_str = sock.recv(4096).decode().split('\r\n')[0]
