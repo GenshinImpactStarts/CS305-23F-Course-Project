@@ -79,6 +79,7 @@ class Headers:
         self.referer = None
         self.user_agent = None
         self.transfer_encoding = None
+        self.range = None
 
 
 def http_header_to_python(header):
@@ -127,12 +128,25 @@ class Header:
             if line == "":
                 break
             key, value = line.split(": ", 1)
-            if http_header_to_python(key.strip()) == "accept_charset":
+            key = http_header_to_python(key.strip())
+            if key == "accept_charset":
                 headers.accept_charset = [v.strip() for v in value.split(",")]
-            elif http_header_to_python(key.strip()) == "accept_language":
+            elif key == "accept_language":
                 headers.accept_language = Headers.AcceptLanguage(value.strip())
+            elif key =="range":
+                ranges = value.strip().replace("bytes=", "").split(",")
+                range_tuples = []
+                for r in ranges:
+                    start, end = r.split("-")
+                    if start=="":
+                        range_tuples.append((-int(end),None))
+                    elif end=="":
+                        range_tuples.append((int(start),None))
+                    else:
+                        range_tuples.append((int(start), int(end)))
+                headers.range = range_tuples
             else:
-                setattr(headers, http_header_to_python(key.strip()), value.strip())
+                setattr(headers, key, value.strip())
 
         return headers, body_part
 

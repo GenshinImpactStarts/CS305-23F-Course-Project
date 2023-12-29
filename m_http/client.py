@@ -102,6 +102,7 @@ class Client:
                     return
 
                 # 处理响应
+                
                 status_code, header_dict, body = self.parse_response(response_headers)
                 if method == "GET":
                     self.handle_get_response(status_code, uri, body)
