@@ -73,9 +73,9 @@ class Server(ThreadingTCP):
                         header_pram, header_class)
                     if header_class.get_headbuilder().status_code // 100 != 4:
                         response_body = self.__post_method(
-                            header_pram, body, path, username, password, password, header_class.get_headbuilder())
+                            header_pram, body, path, username, password, header_class.get_headbuilder())
                 else:
-                    header.get_headbuilder().status_code = 405
+                    header_class.get_headbuilder().status_code = 405
 
             header_class.get_headbuilder().content_length = len(response_body)
             response = header_class.generate_response_headers().encode('utf-8') + \
@@ -85,7 +85,7 @@ class Server(ThreadingTCP):
             return 1, response
 
     # return the status_code and response_data
-    def __get_method(self, header_pram, path, header_builder: header.HeadBuilder):
+    def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder):
         path_part = path.split('?')
         access_path = path_part[0].strip('/')
         SusTech_code = ''
@@ -160,7 +160,7 @@ class Server(ThreadingTCP):
             header_builder.status_code = e.code
         return None
 
-    def __load_handle(self, header_pram, header_builder):
+    def __load_handle(self, header_pram: header.Headers, header_builder: header.Header):
         response = 200
         username = None
         password = None
