@@ -34,6 +34,7 @@ class HeadBuilder:
         self.set_cookie = None
         self.transfer_encoding = None
         self.location = None
+        self.accept_charset = None
         # optional fields
 
 
@@ -174,10 +175,8 @@ class Header:
         if self.head_builder.date is not None:
             string_builder.append(f"Date: {self.head_builder.date}\r\n")
         else:
-            current_datetime = datetime.datetime.now()
-            http_date = current_datetime.strftime(
-                "%a, %d %b %Y %H:%M:%S GMT"
-            )  # Not Sure!
+            current_datetime_utc = datetime.datetime.utcnow()
+            http_date = current_datetime_utc.strftime("%a, %d %b %Y %H:%M:%S GMT")
             string_builder.append(f"Date: {http_date}\r\n")
 
         if self.head_builder.set_cookie is not None:

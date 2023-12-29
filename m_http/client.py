@@ -58,26 +58,38 @@ class Client:
                     else:
                         request += "\r\n"
                         s.sendall(request.encode())
-
-                # 接收响应
+                        
+                # receive the response
                 try:
-                    response = self.receive_response(s)
-                    print("Response:\n", response)
+                    response_in_bytes = self.receive_response_bytes(s) 
                 except socket.error as e:
                     print(f"Error receiving response: {e}")
                     return
-
-                # 处理响应
-                status_code, header_dict, body = self.parse_response(response)
-                if method == "GET":
-                    self.handle_get_response(status_code, uri, body)
-                if "Set-Cookie" in header_dict:
-                    self.store_cookies(header_dict["Set-Cookie"])
+                # handle the response
+                #TODO decode
+                self.handle_response(response_in_bytes,method,uri)
 
         except socket.error as e:
             print(f"Socket error: {e}")
             
-
+    def receive_response_bytes(self,sock):        
+        response=b''
+        while True:
+            data = sock.recv(4096)
+            if not data:
+                break
+            response += data
+        return response
+            
+    def handle_response(self,response,method,uri=None):
+        response = response.decode() # ?
+        print("Response:\n", response)
+        status_code, header_dict, body = self.parse_response(response)
+        if method == "GET":
+            self.handle_get_response(status_code, uri, body)
+        if "Set-Cookie" in header_dict:
+            self.store_cookies(header_dict["Set-Cookie"])
+        
     def format_cookies(self):
         return "; ".join(f"{key}={value}" for key, value in self.cookies.items())
 
@@ -107,7 +119,7 @@ class Client:
                 response_body += data
             return response_headers + response_body
         
-    def receive_chunked_response(self, sock):
+    #def receive_chunked_response(self, sock):
         response_body = ''
         while True:
             chunk_size_str = sock.recv(4096).decode().split('\r\n')[0]
