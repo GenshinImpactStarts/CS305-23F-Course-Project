@@ -11,74 +11,62 @@ class Client:
         self.cookies = {}
 
     def compile_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
+        
+        if file_path:
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if headers is None:
+                headers = {}
+            headers['Content-Type'] = mime_type or 'application/octet-stream'
+
+
+        request = f"{method} {uri} HTTP/1.1\r\nHost: {self.host}\r\n"
+        if self.cookies:
+            request += f"Cookie: {self.format_cookies()}\r\n"
+        if headers:
+            for header, value in headers.items():
+                request += f"{header}: {value}\r\n"    
+            
+
+        if isChunk and file_path:
+            
+            request += "Transfer-Encoding: chunked\r\n\r\n"
+            temp = []
+            temp.append(request.encode())
+            with open(file_path, 'rb') as file:
+                while True:
+                    chunk = file.read(4096)
+                    if not chunk:
+                        break
+                    temp.append(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n") 
+            temp.append(b"0\r\n\r\n")
+            
+            return b''.join(temp) # here TODO
+        
+        else:
+            temp = []
+            if body:
+                request += f"Content-Length: {len(body)}\r\n\r\n"
+                temp.append(request.encode)
+                if isinstance(body, str):
+                    body = body.encode()
+                temp.append(request.encode() + body)
+            else:
+                temp.append(b"\r\n")
+                
+            return b''.join(temp) # here TODO    
+                
+                
+        # receive the response
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.connect((self.host, self.port))
-                except socket.timeout:
-                    print(f"Connection to {self.host}:{self.port} timed out.")
-                    return
-                except socket.gaierror:
-                    print(f"Address-related error connecting to {self.host}:{self.port}")
-                    return
-
-                if file_path:
-                    mime_type, _ = mimetypes.guess_type(file_path)
-                    if headers is None:
-                        headers = {}
-                    headers['Content-Type'] = mime_type or 'application/octet-stream'
-        
-        
-                request = f"{method} {uri} HTTP/1.1\r\nHost: {self.host}\r\n"
-                if self.cookies:
-                    request += f"Cookie: {self.format_cookies()}\r\n"
-                if headers:
-                    for header, value in headers.items():
-                        request += f"{header}: {value}\r\n"    
-                    
-
-                if isChunk and file_path:
-                    
-                    request += "Transfer-Encoding: chunked\r\n\r\n"
-                    temp = []
-                    temp.append(request.encode())
-                    with open(file_path, 'rb') as file:
-                        while True:
-                            chunk = file.read(4096)
-                            if not chunk:
-                                break
-                            temp.append(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n") 
-                    temp.append(b"0\r\n\r\n")
-                    
-                    return b''.join(temp) # here TODO
-                
-                else:
-                    temp = []
-                    if body:
-                        request += f"Content-Length: {len(body)}\r\n\r\n"
-                        temp.append(request.encode)
-                        if isinstance(body, str):
-                            body = body.encode()
-                        temp.append(request.encode() + body)
-                    else:
-                        temp.append(b"\r\n")
-                        
-                    return b''.join(temp) # here TODO    
-                        
-                        
-                # receive the response
-                try:
-                    response_in_bytes = self.receive_response_bytes(s) 
-                except socket.error as e:
-                    print(f"Error receiving response: {e}")
-                    return
-                # handle the response
-                
-                #TODO decode
-                self.handle_response(response_in_bytes,method,uri)
-
+            response_in_bytes = self.receive_response_bytes(s) 
         except socket.error as e:
-            print(f"Socket error: {e}")
+            print(f"Error receiving response: {e}")
+            return
+        # handle the response
+        
+        #TODO decode
+        self.handle_response(response_in_bytes,method,uri)
+
     
     def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
         request = self.compile_request(method, uri, body, headers, file_path, isChunk)
