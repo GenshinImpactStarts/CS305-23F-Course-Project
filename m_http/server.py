@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import random
 import re
@@ -49,35 +50,43 @@ class Server(ThreadingTCP):
                 request.decode('utf-8'))
             header_pram, body = header.Header.parse_request_headers(
                 request.decode('utf-8'))
-            if (header_pram.content_length is not None) or (path.find('chunked=') and not path.find('chunked=0')):
+            if (header_pram.content_length is not None) or (header_pram.transfer_encoding is not None and  header_pram.transfer_encoding.lower() == 'chunked'):
                 if (header_pram.content_length is not None):
                     if len(body) < int(header_pram.content_length):
                         return 0
                 else:
-                    if (not body.find(b'\r\n')):
+                    if (not body.find(b'\r\n\r\n')):
                         return 0
             else:
                 header_pram.content_length = 0
-
+            need_chunk = ('chunked=1'in path.replace(' ',''))
             response_body = b''
-            if (method == " HEAD"):
+            if (method == "HEAD"):
                 header_class.get_headbuilder().status_code = 200
                 # response=header_class.generate_response_headers()
             else:
                 # check identity
                 if method == "GET":
                     response_body = self.__get_method(
-                        header_pram, path, header_class.get_headbuilder())
+                        header_pram, path, header_class.get_headbuilder(),need_chunk)
                 elif method == "POST":
                     header_class.get_headbuilder().status_code, username, password = self.__load_handle(
                         header_pram, header_class)
                     if header_class.get_headbuilder().status_code // 100 != 4:
                         response_body = self.__post_method(
-                            header_pram, body, path, username, password, header_class.get_headbuilder())
+                            header_pram, body, path, username, password, header_class.get_headbuilder(),need_chunk)
                 else:
                     header_class.get_headbuilder().status_code = 405
 
-            header_class.get_headbuilder().content_length = len(response_body)
+            if (not need_chunk):
+                if (response_body is not None):
+                    header_class.get_headbuilder().content_length = len(response_body)
+                else:
+                    response_body=b''
+            else:
+                header_class.get_headbuilder().transfer_encoding= 'chunked'
+            
+            header_class.get_headbuilder().connection=header_pram.connection
             response = header_class.generate_response_headers().encode('utf-8') + \
                 b'\r\n'+response_body
             if header_pram.connection == 'close':
@@ -85,7 +94,7 @@ class Server(ThreadingTCP):
             return 1, response
 
     # return the status_code and response_data
-    def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder):
+    def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder,need_chunk:bool):
         path_part = path.split('?')
         access_path = path_part[0].strip('/')
         SusTech_code = ''
@@ -113,10 +122,15 @@ class Server(ThreadingTCP):
                         header_builder.status_code = 301
                         header_builder.location = path+'/'
                     else:
+                        if (("SUSTech-HTTP=0" not in SusTech_code)):
+                            header_builder='html'
+                        else:
+                            header_builder='txt'
                         response_body = Body.get_folder(
-                            filePath, return_html=("SUSTech-HTTP=0" not in SusTech_code))
+                            filePath, return_html=("SUSTech-HTTP=0" not in SusTech_code),chunked=need_chunk)
                 elif os.path.isfile(filePath):
-                    file_content = Body.get_file(filePath)
+                    header_builder.content_type, header_builder.char_set = mimetypes.guess_type(filePath)
+                    file_content = Body.get_file(filePath,chunked=need_chunk)
                     response_body = file_content
 
                 header_builder.status_code = 200
@@ -126,9 +140,15 @@ class Server(ThreadingTCP):
             header_builder.status_code = e.code
         return response_body
 
-    def __post_method(self, header_pram, body, path, username, password, header_builder: header.HeadBuilder):
-        upload_or_del = path.split("?")[0]
-        Origin_path = path.split("?")[1].strip()  # ex:path=/11912113/abc.py
+    def __post_method(self, header_pram, body, path, username, password, header_builder: header.HeadBuilder,need_chunk:bool):
+        p_s=path.split('?',1)
+        
+        if (len(p_s)>1):
+            upload_or_del = p_s[0]
+            Origin_path = p_s[1].strip()  # ex:path=/11912113/abc.py
+        else:
+            header_builder.status_code = 400
+            return None
         pattern = r'path=(\S+)'
         match = re.search(pattern, Origin_path)
         try:
@@ -143,7 +163,7 @@ class Server(ThreadingTCP):
                     if os.path.exists(access_path):
                         if upload_or_del == "/upload":          # upload the document
                             Body.recv_post_file(
-                                body, access_path, "uploaded_file")
+                                body, access_path, "uploaded_file",chunked=need_chunk)
                         elif upload_or_del == "/delete":        # delete the document
                             if os.path.exists(access_path):
                                 try:
@@ -190,7 +210,7 @@ class Server(ThreadingTCP):
                         username = authData.split(':')[0]
                         password = authData.split(':')[1]
 
-                        with open(os.path.join(self.current_file_path, 'user_data/user_info/userDatabase.txt'), 'r') as file:
+                        with open(os.path.join(self.current_file_path, 'user_data/userDatabase.txt'), 'r') as file:
                             file_contents = file.read()
                             search_string = username+'/'+password+';'
                             if search_string in file_contents:
@@ -223,3 +243,4 @@ class Server(ThreadingTCP):
         new_cookie = self.cookie_class(
             username=username, password=password, expire=clear_time, sid=sid)
         self.cookie_set[sid] = new_cookie
+        return sid
