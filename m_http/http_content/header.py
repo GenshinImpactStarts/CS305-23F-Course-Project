@@ -195,6 +195,12 @@ class Header:
             )
         else:
             pass  # response_headers += f"Content-Length: 0\r\n"
+        
+        if self.head_builder.transfer_encoding is not None:
+            string_builder.append(f"Transfer-Encoding: {self.head_builder.transfer_encoding}\r\n")
+        
+        if self.head_builder.accept_charset is not None:
+            string_builder.append(f"Accept-Charset: {self.head_builder.accept_charset}\r\n")
 
         self.initialize_headbuilder()  # reset the headbuilder
         return "".join(string_builder)
