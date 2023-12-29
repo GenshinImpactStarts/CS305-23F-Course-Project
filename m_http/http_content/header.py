@@ -113,10 +113,10 @@ class Header:
     # parse the others!
 
     def parse_request_headers(request):
-        if isinstance(request, bytes):
-            request = request.decode('utf-8')
-        if "\r\n\r\n" in request:
+        if b"\r\n\r\n" in request:
             header_part, body_part = request.split(b"\r\n\r\n", 1)
+            if isinstance(header_part, bytes):
+                        header_part = request.decode('utf-8')
         else:
             if isinstance(request, bytes):
                 header_part = request.decode('utf-8')

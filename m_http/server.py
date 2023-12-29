@@ -27,77 +27,93 @@ class Server(ThreadingTCP):
     current_file_path = '.'
 
     def handle(self, conn: socket.socket, addr: tuple):
-        temp = b''
+        temp = []
+        testComplete=0
+        body_length =0
         header_class = header.Header()
         while True:
             receive = conn.recv(2048)
             if receive == b'':
                 break
-            temp += receive
-            testComplete, response = self.handle_request(
-                temp, header_class)
-            if (testComplete != 0):
-                temp = b''
+            temp.append(receive)
+            testComplete, body_length,response  = self.handle_request(
+                temp, header_class,testComplete,body_length)
+              
+            if (testComplete == 2 or testComplete == 3):
+                temp=[]
+                testComplete = 0
+                body_length = 0
                 conn.sendall(response)
-            if (testComplete == 2):
                 break
 
-    # the first pram is {0(not complete),1(keep alive),2(close)}
-    def handle_request(self, request: bytes, header_class: header.Header):
-        if (not request.find(b'\r\n\r\n')):
-            return 0
-        else:
-            method, path, version = header.Header.parse_request_line(
-                request.decode('utf-8'))
-            header_pram, body = header.Header.parse_request_headers(
-                request.decode('utf-8'))
+    # the first pram is {0(header not complete),1(body not complete),2(keep alive),3(close)}
+    def handle_request(self, request: bytes, header_class: header.Header,handle_state:int,body_length:int):
+        if (handle_state == 0 and not request[-1].find(b'\r\n\r\n')):
+            return 0 , 0 ,None
+        if (handle_state == 0):
+            join_req=b''.join(request)
+            temp_req=join_req.split(b'\r\n\r\n',1)
+            tempHeader=temp_req[0]
+            rest=None
+            if (len(temp_req)>1):
+                rest=temp_req[1]
+            request=[tempHeader,request]
+            method, path, version = header.Header.parse_request_line(join_req)
+            header_pram, body = header.Header.parse_request_headers(join_req)
+        body_length += len(request[-1])
+        
+        if (header_pram.content_length!=0):
             if (header_pram.content_length is not None) or (header_pram.transfer_encoding is not None and  header_pram.transfer_encoding.lower() == 'chunked'):
                 if (header_pram.content_length is not None):
-                    if len(body) < int(header_pram.content_length):
-                        return 0
+                    if body_length < int(header_pram.content_length):
+                        return 1 , body_length,None
                 else:
                     if (not body.find(b'\r\n\r\n')):
-                        return 0
-            else:
-                header_pram.content_length = 0
-            need_chunk = ('chunked=1'in path.replace(' ',''))
-            response_body = b''
-            if (method == "HEAD"):
-                header_class.get_headbuilder().status_code = 200
-                # response=header_class.generate_response_headers()
-            else:
-                # check identity
-                header_class.get_headbuilder().status_code, username, password = self.__load_handle(
-                        header_pram, header_class.get_headbuilder())
-                if method == "GET":
+                        return 1 , body_length,None
+        else:
+            header_pram.content_length = 0
+        
+        need_chunk = ('chunked=1'in path.replace(' ',''))
+        response_body = b''
+        if (method == "HEAD"):
+            header_class.get_headbuilder().status_code = 200
+            # response=header_class.generate_response_headers()
+        else:
+            # check identity
+            header_class.get_headbuilder().status_code, username, password = self.__load_handle(
+                    header_pram, header_class.get_headbuilder())
+            if method == "GET":
+                #if (header_pram.range):
+                #    response_body = self.__get_method(
+                #        header_pram, path, header_class.get_headbuilder(),need_chunk)
+                #else:
                     response_body = self.__get_method(
                         header_pram, path, header_class.get_headbuilder(),need_chunk)
-                elif method == "POST":
-                    
-                    if header_class.get_headbuilder().status_code // 100 != 4:
-                        response_body = self.__post_method(
-                            header_pram, body.encode(), path, username, password, header_class.get_headbuilder(),need_chunk)
-                else:
-                    header_class.get_headbuilder().status_code = 405
-
-            if (not need_chunk):
-                if (response_body is not None):
-                    header_class.get_headbuilder().content_length = len(response_body)
-                else:
-                    response_body=b''
-                    header_class.get_headbuilder().content_length = 0
+            elif method == "POST":
+                if header_class.get_headbuilder().status_code // 100 != 4:
+                    response_body = self.__post_method(
+                        header_pram, body.encode(), path, username, password, header_class.get_headbuilder(),need_chunk)    
             else:
-                header_class.get_headbuilder().transfer_encoding= 'chunked'
-            
-            header_class.get_headbuilder().connection=header_pram.connection
-            response = header_class.generate_response_headers().encode('utf-8') + \
-                b'\r\n'+response_body
-            if header_pram.connection == 'close':
-                return 2, response
-            return 1, response
+                header_class.get_headbuilder().status_code = 405
+        if (not need_chunk):
+            if (response_body is not None):
+                header_class.get_headbuilder().content_length = len(response_body)
+            else:
+                response_body=b''
+                header_class.get_headbuilder().content_length = 0
+        else:
+            header_class.get_headbuilder().transfer_encoding= 'chunked'
+        
+        header_class.get_headbuilder().connection=header_pram.connection
+        response = header_class.generate_response_headers().encode('utf-8') + \
+            b'\r\n'+response_body
+        if header_pram.connection == 'close':
+            return 3, 0,response
+        return 2, 0,response
 
     # return the status_code and response_data
-    def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder,need_chunk:bool):
+    def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder,
+                     need_chunk:bool,range:[]):
         path_part = path.split('?')
         access_path = path_part[0].lstrip('/')
         SusTech_code = ''
@@ -112,15 +128,18 @@ class Server(ThreadingTCP):
             if ".." in filePath:  # prevent attack
                 header_builder.status_code = 403
             elif os.path.exists(filePath):
-                last_modified_time = time.gmtime(os.path.getmtime(filePath))
-                if (header_pram.if_modified_since is not None):
+                if header_pram.if_modified_since is not None:
+                    last_modified_timestamp = os.path.getmtime(filePath)
+                    last_modified_time = datetime.datetime.utcfromtimestamp(last_modified_timestamp)
                     try:
-                        client_request_time = time.mktime(
-                            time.strptime(header_pram.if_modified_since, "%a, %d %b %Y %H:%M:%S GMT"))
+                        client_request_time = datetime.datetime.strptime(header_pram.if_modified_since, "%a, %d %b %Y %H:%M:%S GMT")
                     except ValueError:
-                        pass
-                    if client_request_time >= last_modified_time:
-                        header_builder.status_code = 403
+                        pass    #i choose to ignore
+                    else:
+                        if client_request_time >= last_modified_time:
+                            header_builder.status_code = 304
+                            return None
+                    
                 if os.path.isdir(filePath):
                     if filePath[-1] != '/':
                         header_builder.status_code = 301
@@ -221,7 +240,8 @@ class Server(ThreadingTCP):
                         search_string = username+'/'+password+';'
                         if search_string in file_contents:
                             response = 200
-                            header_builder.set_cookie = self.__set_cookie(
+                            header_builder.set_cookie = ''
+                            header_builder.set_cookie += 'session-id='+self.__set_cookie(
                                 username, password)
                         else:
                             response = 401
