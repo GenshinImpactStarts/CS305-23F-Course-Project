@@ -116,10 +116,11 @@ class Header:
         if isinstance(request, bytes):
             request = request.decode('utf-8')
         if "\r\n\r\n" in request:
-            header_part, body_part = request.split("\r\n\r\n", 1)
+            header_part, body_part = request.split(b"\r\n\r\n", 1)
         else:
-            header_part = request
-            body_part = ""
+            if isinstance(request, bytes):
+                header_part = request.decode('utf-8')
+            body_part = b""
         lines = header_part.split("\r\n")
         headers = Headers()
         for line in lines[1:]:
