@@ -60,10 +60,15 @@ class Server(ThreadingTCP):
             if (len(temp_req) > 1):
                 rest = temp_req[1]
             request = [tempHeader, rest]
-            method, path, version = header.Header.parse_request_line(join_req)
-            header_pram, body = header.Header.parse_request_headers(join_req)
-        body_length += len(request[-1])
+            try:
+                method, path, version = header.Header.parse_request_line(
+                    join_req)
+                header_pram, body = header.Header.parse_request_headers(
+                    join_req)
+            except StatusCode as e:
+                header_class.get_headbuilder().status_code = e.code
 
+        body_length += len(request[-1])
         if (header_pram.content_length != 0):
             if (header_pram.content_length is not None) or (header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked'):
                 if (header_pram.content_length is not None):
@@ -75,23 +80,25 @@ class Server(ThreadingTCP):
         else:
             header_pram.content_length = 0
 
-        need_chunk = ('chunked=1' in path.replace(' ', ''))
-        response_body = b''
-        if (method == "HEAD"):
-            header_class.get_headbuilder().status_code = 200
-        else:
-            # check identity
-            header_class.get_headbuilder().status_code, username, password = self.__load_handle(
-                header_pram, header_class.get_headbuilder())
-            if method == "GET":
-                response_body = self.__get_method(
-                    header_pram, path, header_class.get_headbuilder(), need_chunk)
-            elif method == "POST":
-                if header_class.get_headbuilder().status_code // 100 != 4:
-                    response_body = self.__post_method(
-                        header_pram, body, path, username, password, header_class.get_headbuilder(), need_chunk)
+        if (header_class.get_headbuilder().status_code == None or
+                header_class.get_headbuilder().status_code // 100 != 4):
+            need_chunk = ('chunked=1' in path.replace(' ', ''))
+            response_body = b''
+            if (method == "HEAD"):
+                header_class.get_headbuilder().status_code = 200
             else:
-                header_class.get_headbuilder().status_code = 405
+                # check identity
+                header_class.get_headbuilder().status_code, username, password = self.__load_handle(
+                    header_pram, header_class.get_headbuilder())
+                if header_class.get_headbuilder().status_code // 100 != 4:
+                    if method == "GET":
+                        response_body = self.__get_method(
+                            header_pram, path, header_class.get_headbuilder(), need_chunk)
+                    elif method == "POST":
+                        response_body = self.__post_method(
+                            header_pram, body, path, username, password, header_class.get_headbuilder(), need_chunk)
+                    else:
+                        header_class.get_headbuilder().status_code = 405
 
         if (not need_chunk):
             if (response_body is not None):
@@ -101,6 +108,7 @@ class Server(ThreadingTCP):
                 header_class.get_headbuilder().content_length = 0
         else:
             header_class.get_headbuilder().transfer_encoding = 'chunked'
+
         if (header_pram.range):
             if len(header_pram.range) != 1 and header_class.get_headbuilder().boundary:
                 header_class.get_headbuilder().content_type = 'multipart/byteranges; boundary=' + \
@@ -108,7 +116,7 @@ class Server(ThreadingTCP):
 
         header_class.get_headbuilder().connection = header_pram.connection
         response = header_class.generate_response_headers().encode('utf-8') + \
-            b'\r\n'+response_body
+            b'\r\n' + response_body
         if header_pram.connection == 'close':
             return 3, 0, response
         return 2, 0, response
@@ -116,6 +124,9 @@ class Server(ThreadingTCP):
     # return the status_code and response_data
     def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder,
                      need_chunk: bool):
+        if (path[:13] == 'upload?path=') or (path[:13] == 'delete?path='):
+            header_builder.status_code = 405
+            return
         path_part = path.split('?')
         access_path = path_part[0].lstrip('/')
         SusTech_code = ''
@@ -127,6 +138,7 @@ class Server(ThreadingTCP):
         filePath = os.path.join(self.current_file_path, "data", access_path)
         filePath = filePath.replace('\\', '/')
         try:
+
             if ".." in filePath:  # prevent attack
                 header_builder.status_code = 403
             elif os.path.exists(filePath):
@@ -164,7 +176,6 @@ class Server(ThreadingTCP):
                         response_body = file_content
                     header_builder.status_code = 200
                 else:
-
                     if os.path.isdir(filePath):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
@@ -196,7 +207,10 @@ class Server(ThreadingTCP):
                             file_content = Body.get_multi_part_file(
                                 filePath, boundary=boundary, ranges=header_pram.range, chunked=need_chunk)
                         response_body = file_content
-                    header_builder.status_code = 200
+                    if (header_pram.range):
+                        header_builder.status_code = 206
+                    else:
+                        header_builder.status_code = 200
             else:
                 header_builder.status_code = 400
         except StatusCode as e:
@@ -208,9 +222,9 @@ class Server(ThreadingTCP):
 
         if (len(p_s) > 1):
             upload_or_del = p_s[0]
-            Origin_path = p_s[1].strip()  # ex:path=/11912113/abc.py
+            Origin_path = p_s[1].strip()  # ex:upload?path=/11912113/abc.py
         else:
-            header_builder.status_code = 400
+            header_builder.status_code = 405
             return None
         pattern = r'path=(\S+)'
         match = re.search(pattern, Origin_path)
@@ -233,6 +247,8 @@ class Server(ThreadingTCP):
                                     os.remove(access_path)
                                 except Exception as e:
                                     header_builder.status_code
+                        else:
+                            header_builder.status_code = 405
                     else:
                         header_builder.status_code = 404
                 else:
