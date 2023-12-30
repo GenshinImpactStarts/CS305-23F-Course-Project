@@ -3,6 +3,7 @@ import mimetypes
 import os
 import random
 import re
+import shutil
 import string
 import time
 import socket
@@ -161,6 +162,7 @@ class Server(ThreadingTCP):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
                             header_builder.location = access_path+'/'
+                            return None
                         else:
                             if (("SUSTech-HTTP=1" in SusTech_code)):
                                 header_builder.content_type = 'txt'
@@ -181,6 +183,7 @@ class Server(ThreadingTCP):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
                             header_builder.location = access_path+'/'
+                            return None
                         else:
                             if (("SUSTech-HTTP=0" not in SusTech_code)):
                                 header_builder.content_type = 'html'
@@ -213,12 +216,12 @@ class Server(ThreadingTCP):
                     else:
                         header_builder.status_code = 200
             else:
-                header_builder.status_code = 400
+                header_builder.status_code = 404
         except StatusCode as e:
             header_builder.status_code = e.code
         return response_body
 
-    def __post_method(self, header_pram, body: bytes, path, username, password, 
+    def __post_method(self, header_pram:header.Headers(), body: bytes, path, username, password, 
                       header_builder: header.HeadBuilder, is_chunk: bool):
         p_s = path.split('?', 1)
         header_builder.status_code = 200
@@ -261,7 +264,13 @@ class Server(ThreadingTCP):
                         elif upload_or_del == "/delete":        # delete the document
                             if os.path.exists(access_path):
                                 try:
-                                    os.remove(access_path)
+                                    if os.path.isdir(access_path):
+                                        if (access_path=='/'):
+                                            header_builder.status_code =400
+                                        else:
+                                            shutil.rmtree(access_path)
+                                    if os.path.isfile(access_path): 
+                                        os.remove(access_path)
                                 except Exception as e:
                                     header_builder.status_code
                         else:
