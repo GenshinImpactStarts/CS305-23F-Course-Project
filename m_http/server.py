@@ -93,7 +93,8 @@ class Server(ThreadingTCP):
                         header_pram, path, header_class.get_headbuilder(), need_chunk)
                 elif method == "POST":
                     response_body = self.__post_method(
-                        header_pram, body, path, username, password, header_class.get_headbuilder(), need_chunk)
+                        header_pram, body, path, username, password, header_class.get_headbuilder(),
+                            header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked')
                 else:
                     header_class.get_headbuilder().status_code = 405
 
@@ -107,9 +108,9 @@ class Server(ThreadingTCP):
             header_class.get_headbuilder().transfer_encoding = 'chunked'
 
         if (header_pram.range):
-            if len(header_pram.range) != 1 and header_class.get_headbuilder().boundary:
+            if len(header_pram.range) != 1 and header_class.get_headbuilder().self_boundary:
                 header_class.get_headbuilder().content_type = 'multipart/byteranges; boundary=' + \
-                    header_class.get_headbuilder().boundary
+                    header_class.get_headbuilder().self_boundary
 
         header_class.get_headbuilder().connection = header_pram.connection
         if (method == "HEAD"):
@@ -191,10 +192,10 @@ class Server(ThreadingTCP):
                                     filePath, range=header_pram.range[0], return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
                             else:
                                 characters = string.ascii_letters + string.digits
-                                boundary = ''.join(random.choice(
+                                self_boundary = ''.join(random.choice(
                                     characters) for i in range(30))
                                 response_body = Body.get_multi_part_folder(
-                                    filePath, range=header_pram.range, boundary=boundary, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
+                                    filePath, range=header_pram.range, boundary=self_boundary, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
                     elif os.path.isfile(filePath):
                         header_builder.content_type, _ = mimetypes.guess_type(
                             filePath)
@@ -203,10 +204,10 @@ class Server(ThreadingTCP):
                                 filePath, range=header_pram.range[0], chunked=need_chunk)
                         else:
                             characters = string.ascii_letters + string.digits
-                            boundary = ''.join(random.choice(
+                            self_boundary = ''.join(random.choice(
                                 characters) for i in range(30))
                             file_content = Body.get_multi_part_file(
-                                filePath, boundary=boundary, ranges=header_pram.range, chunked=need_chunk)
+                                filePath, boundary=self_boundary, ranges=header_pram.range, chunked=need_chunk)
                         response_body = file_content
                     if (header_pram.range):
                         header_builder.status_code = 206
@@ -218,7 +219,8 @@ class Server(ThreadingTCP):
             header_builder.status_code = e.code
         return response_body
 
-    def __post_method(self, header_pram, body: bytes, path, username, password, header_builder: header.HeadBuilder, need_chunk: bool):
+    def __post_method(self, header_pram, body: bytes, path, username, password, 
+                      header_builder: header.HeadBuilder, is_chunk: bool):
         p_s = path.split('?', 1)
         header_builder.status_code = 200
         if (len(p_s) > 1):
@@ -240,8 +242,23 @@ class Server(ThreadingTCP):
                     access_path = access_path.replace('\\', '/')
                     if os.path.exists(access_path):
                         if upload_or_del == "/upload":          # upload the document
-                            Body.recv_post_file(
-                                body, access_path, "uploaded_file", chunked=need_chunk)
+                            if header_pram.content_type.find('multipart/form-data'):
+                                if (header_pram.boundary is not None):
+                                    Body.recv_multi_part_file(body,header_pram.boundary,is_chunk)
+                                else: 
+                                    header_builder.status_code = 405
+                            else:
+                                Body.recv_post_file(
+
+
+
+                                    #Not yet!
+                                    body, access_path, "uploaded_file", chunked=is_chunk)
+                        
+                        
+                        
+                        
+                        
                         elif upload_or_del == "/delete":        # delete the document
                             if os.path.exists(access_path):
                                 try:
