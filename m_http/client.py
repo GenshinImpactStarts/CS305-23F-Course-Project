@@ -51,6 +51,7 @@ class Client:
                     body = body.encode()
                 temp.append(request.encode() + body)
             else:
+                temp.append(request.encode())
                 temp.append(b"\r\n")
                 
             return b''.join(temp) # here TODO    
@@ -193,7 +194,7 @@ class Client:
 
 
 if __name__ == "__main__":
-    client = Client("127.0.0.1", 65432)
+    client = Client("127.0.0.1", 8080)
 
     client.send_request("GET", "/")
 
