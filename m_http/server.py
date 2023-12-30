@@ -84,11 +84,11 @@ class Server(ThreadingTCP):
                 header_class.get_headbuilder().status_code // 100 != 4):
             need_chunk = ('chunked=1' in path.replace(' ', ''))
             response_body = b''
-            
+
             header_class.get_headbuilder().status_code, username, password = self.__load_handle(
                 header_pram, header_class.get_headbuilder())
             if header_class.get_headbuilder().status_code // 100 != 4:
-                if method == "GET" or "HEAD":
+                if method == "GET" or method == "HEAD":
                     response_body = self.__get_method(
                         header_pram, path, header_class.get_headbuilder(), need_chunk)
                 elif method == "POST":
@@ -112,7 +112,7 @@ class Server(ThreadingTCP):
                     header_class.get_headbuilder().boundary
 
         header_class.get_headbuilder().connection = header_pram.connection
-        if (method=="HEAD"):
+        if (method == "HEAD"):
             response = header_class.generate_response_headers().encode('utf-8') + \
                 b'\r\n'
         else:
@@ -220,7 +220,7 @@ class Server(ThreadingTCP):
 
     def __post_method(self, header_pram, body: bytes, path, username, password, header_builder: header.HeadBuilder, need_chunk: bool):
         p_s = path.split('?', 1)
-
+        header_builder.status_code = 200
         if (len(p_s) > 1):
             upload_or_del = p_s[0]
             Origin_path = p_s[1].strip()  # ex:upload?path=/11912113/abc.py
@@ -272,13 +272,13 @@ class Server(ThreadingTCP):
 
                 for param in cookie_params:
                     cookie_part = param.split("=")
-                    if len(cookie_params) > 1:
-                        cookie_key = [0].lower()
-                        cookie_value = param.split("=")[1].strip()
+                    if len(cookie_part) > 1:
+                        cookie_key = cookie_part[0].lower()
+                        cookie_value =cookie_part[1].strip()
                         cookie_dict[cookie_key] = cookie_value
-                if 'sid' in cookie_dict:
-                    if cookie_dict['sid'] in self.cookie_set:
-                        cookie = self.cookie_set[cookie_dict['sid']]
+                if 'session-id' in cookie_dict:
+                    if cookie_dict['session-id'] in self.cookie_set:
+                        cookie = self.cookie_set[cookie_dict['session-id']]
                         ddl = cookie.expire
                         if ddl is not None and ddl > datetime.datetime.now():
                             username = cookie.username
@@ -287,26 +287,24 @@ class Server(ThreadingTCP):
                             test_cookie = True
             else:
                 test_cookie = True
-            if test_cookie and header_pram.authorization:
-                if header_pram.authorization.startswith("Basic "):
-                    authData = base64.b64decode(
-                        header_pram.authorization.split(" ")[-1]).decode('utf-8')
-                    username = authData.split(':')[0]
-                    password = authData.split(':')[1]
-                    with open(os.path.join(self.current_file_path, 'user_data\\userDatabase.txt'), 'r') as file:
-                        file_contents = file.read()
-                        search_string = username+'/'+password+';'
-                        if search_string in file_contents:
-                            response = 200
-                            header_builder.set_cookie = self.__set_cookie(
-                                username, password)
-                        else:
-                            response = 401
-                else:
-                    response = 401                               # 检查用户名和密码是否匹配
-            else:
-                pass
-                response = 401
+            if test_cookie :
+                if header_pram.authorization:
+                    if header_pram.authorization.startswith("Basic "):
+                        authData = base64.b64decode(
+                            header_pram.authorization.split(" ")[-1]).decode('utf-8')
+                        username = authData.split(':')[0]
+                        password = authData.split(':')[1]
+                        with open(os.path.join(self.current_file_path, 'user_data\\userDatabase.txt'), 'r') as file:
+                            file_contents = file.read()
+                            search_string = username+'/'+password+';'
+                            if search_string in file_contents:
+                                response = 200
+                                header_builder.set_cookie = self.__set_cookie(
+                                    username, password)
+                            else:
+                                response = 401
+                    else:
+                        response = 401                               # 检查用户名和密码是否匹配
         else:
             response = 401
 
@@ -327,4 +325,6 @@ class Server(ThreadingTCP):
         new_cookie = self.cookie_class(
             username=username, password=password, expire=clear_time, sid=sid)
         self.cookie_set[sid] = new_cookie
-        return cookie_respond
+
+        set_cookie=''.join(cookie_respond)
+        return set_cookie
