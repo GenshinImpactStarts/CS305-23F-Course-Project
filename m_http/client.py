@@ -10,6 +10,7 @@ class Client:
         self.host = host
         self.port = port
         self.cookies = {}
+        self.headers = {"Authorization": "Basic Y2xpZW50MToxMjM="}
 
     def handle_response(self, response, method, uri=None):
         response = response.decode()  # ?
@@ -35,21 +36,27 @@ class Client:
             for header, value in headers.items():
                 request += f"{header}: {value}\r\n"
 
-        if isChunk and file_path:
-
-            request += "Transfer-Encoding: chunked\r\n\r\n"
-            temp = []
-            temp.append(request.encode())
-            with open(file_path, 'rb') as file:
-                while True:
-                    chunk = file.read(4096)
-                    if not chunk:
-                        break
-                    temp.append(
-                        f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
-            temp.append(b"0\r\n\r\n")
-
-            return b''.join(temp)  # here TODO
+        if file_path:
+            if not isChunk:
+                with open(file_path, 'rb') as file:
+                    file_content = file.read()
+                request += f"Content-Length: {str(len(file_content))}\r\n\r\n"
+                request += f"\r\n"
+                temp = []
+                temp.append(request.encode()+file_content)
+                return b''.join(temp)  # here TODO
+            if isChunk:
+                request += "Transfer-Encoding: chunked\r\n\r\n"
+                temp = []
+                temp.append(request.encode())
+                with open(file_path, 'rb') as file:
+                    while True:
+                        chunk = file.read(4096)
+                        if not chunk:
+                            break
+                        temp.append(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
+                temp.append(b"0\r\n\r\n")
+                return b''.join(temp)  # here TODO
 
         else:
             temp = []
@@ -169,8 +176,8 @@ class Client:
 if __name__ == "__main__":
     client = Client("127.0.0.1", 8080)
 
-    client.send_request("GET", "/a.txt")
+    #client.send_request("GET", "/a.txt",headers=client.headers)
 
-    client.send_request("HEAD", "/")
+    #client.send_request("HEAD", "/")
 
-    client.send_request("POST", "/", "Really want to play Genshin Impact",file_path="D:\Genshin Impact\laucher.txt")
+    client.send_request("POST", "/", "Really want to play Genshin Impact",file_path="D:\Genshin Impact\laucher.txt",headers=client.headers)
