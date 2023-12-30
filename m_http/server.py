@@ -28,91 +28,94 @@ class Server(ThreadingTCP):
 
     def handle(self, conn: socket.socket, addr: tuple):
         temp = []
-        testComplete=0
-        body_length =0
+        testComplete = 0
+        body_length = 0
         header_class = header.Header()
         while True:
             receive = conn.recv(2048)
             if receive == b'':
                 break
             temp.append(receive)
-            testComplete, body_length,response  = self.handle_request(
-                temp, header_class,testComplete,body_length)
-              
+            testComplete, body_length, response = self.handle_request(
+                temp, header_class, testComplete, body_length)
+
             if (testComplete == 2 or testComplete == 3):
-                temp=[]
+                temp = []
                 testComplete = 0
                 body_length = 0
                 conn.sendall(response)
+
+            if testComplete == 3:
                 break
 
     # the first pram is {0(header not complete),1(body not complete),2(keep alive),3(close)}
-    def handle_request(self, request: bytes, header_class: header.Header,handle_state:int,body_length:int):
+    def handle_request(self, request: bytes, header_class: header.Header, handle_state: int, body_length: int):
         if (handle_state == 0 and not request[-1].find(b'\r\n\r\n')):
-            return 0 , 0 ,None
+            return 0, 0, None
         if (handle_state == 0):
-            join_req=b''.join(request)
-            temp_req=join_req.split(b'\r\n\r\n',1)
-            tempHeader=temp_req[0]
-            rest=None
-            if (len(temp_req)>1):
-                rest=temp_req[1]
-            request=[tempHeader,rest]
+            join_req = b''.join(request)
+            temp_req = join_req.split(b'\r\n\r\n', 1)
+            tempHeader = temp_req[0]
+            rest = None
+            if (len(temp_req) > 1):
+                rest = temp_req[1]
+            request = [tempHeader, rest]
             method, path, version = header.Header.parse_request_line(join_req)
             header_pram, body = header.Header.parse_request_headers(join_req)
         body_length += len(request[-1])
-        
-        if (header_pram.content_length!=0):
-            if (header_pram.content_length is not None) or (header_pram.transfer_encoding is not None and  header_pram.transfer_encoding.lower() == 'chunked'):
+
+        if (header_pram.content_length != 0):
+            if (header_pram.content_length is not None) or (header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked'):
                 if (header_pram.content_length is not None):
                     if body_length < int(header_pram.content_length):
-                        return 1 , body_length,None
+                        return 1, body_length, None
                 else:
                     if (not body.find(b'\r\n\r\n')):
-                        return 1 , body_length,None
+                        return 1, body_length, None
         else:
             header_pram.content_length = 0
-        
-        need_chunk = ('chunked=1'in path.replace(' ',''))
+
+        need_chunk = ('chunked=1' in path.replace(' ', ''))
         response_body = b''
         if (method == "HEAD"):
-            header_class.get_headbuilder().status_code = 200     
+            header_class.get_headbuilder().status_code = 200
         else:
             # check identity
             header_class.get_headbuilder().status_code, username, password = self.__load_handle(
-                    header_pram, header_class.get_headbuilder())
+                header_pram, header_class.get_headbuilder())
             if method == "GET":
                 response_body = self.__get_method(
-                    header_pram, path, header_class.get_headbuilder(),need_chunk)
+                    header_pram, path, header_class.get_headbuilder(), need_chunk)
             elif method == "POST":
                 if header_class.get_headbuilder().status_code // 100 != 4:
                     response_body = self.__post_method(
-                        header_pram, body, path, username, password, header_class.get_headbuilder(),need_chunk)    
+                        header_pram, body, path, username, password, header_class.get_headbuilder(), need_chunk)
             else:
                 header_class.get_headbuilder().status_code = 405
-        
+
         if (not need_chunk):
             if (response_body is not None):
                 header_class.get_headbuilder().content_length = len(response_body)
             else:
-                response_body=b''
+                response_body = b''
                 header_class.get_headbuilder().content_length = 0
         else:
-            header_class.get_headbuilder().transfer_encoding= 'chunked'
+            header_class.get_headbuilder().transfer_encoding = 'chunked'
         if (header_pram.range):
-            if len(header_pram.range)!=1 and header_class.get_headbuilder().boundary:
-                header_class.get_headbuilder().content_type='multipart/byteranges; boundary='+header_class.get_headbuilder().boundary
+            if len(header_pram.range) != 1 and header_class.get_headbuilder().boundary:
+                header_class.get_headbuilder().content_type = 'multipart/byteranges; boundary=' + \
+                    header_class.get_headbuilder().boundary
 
-        header_class.get_headbuilder().connection=header_pram.connection
+        header_class.get_headbuilder().connection = header_pram.connection
         response = header_class.generate_response_headers().encode('utf-8') + \
             b'\r\n'+response_body
         if header_pram.connection == 'close':
-            return 3, 0,response
-        return 2, 0,response
+            return 3, 0, response
+        return 2, 0, response
 
     # return the status_code and response_data
     def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder,
-                     need_chunk:bool):
+                     need_chunk: bool):
         path_part = path.split('?')
         access_path = path_part[0].lstrip('/')
         SusTech_code = ''
@@ -120,7 +123,7 @@ class Server(ThreadingTCP):
         if (len(path_part) > 1):
             SusTech_code = path_part[1]
         if (access_path.startswith('/')):
-            access_path.replace('/','',1)
+            access_path.replace('/', '', 1)
         filePath = os.path.join(self.current_file_path, "data", access_path)
         filePath = filePath.replace('\\', '/')
         try:
@@ -129,60 +132,69 @@ class Server(ThreadingTCP):
             elif os.path.exists(filePath):
                 if header_pram.if_modified_since is not None:
                     last_modified_timestamp = os.path.getmtime(filePath)
-                    last_modified_time = datetime.datetime.utcfromtimestamp(last_modified_timestamp)
+                    last_modified_time = datetime.datetime.utcfromtimestamp(
+                        last_modified_timestamp)
                     try:
-                        client_request_time = datetime.datetime.strptime(header_pram.if_modified_since, "%a, %d %b %Y %H:%M:%S GMT")
+                        client_request_time = datetime.datetime.strptime(
+                            header_pram.if_modified_since, "%a, %d %b %Y %H:%M:%S GMT")
                     except ValueError:
-                        pass    #i choose to ignore
+                        pass  # i choose to ignore
                     else:
                         if client_request_time >= last_modified_time:
                             header_builder.status_code = 304
                             return None
-                if header_pram.range is None:   
+                if header_pram.range is None:
                     if os.path.isdir(filePath):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
                             header_builder.location = access_path+'/'
                         else:
                             if (("SUSTech-HTTP=0" not in SusTech_code)):
-                                header_builder.content_type='html'
+                                header_builder.content_type = 'html'
                             else:
-                                header_builder.content_type='txt'
+                                header_builder.content_type = 'txt'
 
                             response_body = Body.get_folder(
-                                filePath, return_html=("SUSTech-HTTP=0" not in SusTech_code),chunked=need_chunk)
+                                filePath, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
                     elif os.path.isfile(filePath):
-                        header_builder.content_type, _ = mimetypes.guess_type(filePath)
-                        file_content = Body.get_file(filePath,chunked=need_chunk)
+                        header_builder.content_type, _ = mimetypes.guess_type(
+                            filePath)
+                        file_content = Body.get_file(
+                            filePath, chunked=need_chunk)
                         response_body = file_content
                     header_builder.status_code = 200
                 else:
-                    
+
                     if os.path.isdir(filePath):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
                             header_builder.location = access_path+'/'
                         else:
                             if (("SUSTech-HTTP=0" not in SusTech_code)):
-                                header_builder.content_type='html'
+                                header_builder.content_type = 'html'
                             else:
-                                header_builder.content_type='txt'
-                            if len(header_pram.range)==1:
+                                header_builder.content_type = 'txt'
+                            if len(header_pram.range) == 1:
                                 response_body = Body.get_part_folder(
-                                    filePath,range=header_pram.range[0], return_html=("SUSTech-HTTP=0" not in SusTech_code),chunked=need_chunk)
+                                    filePath, range=header_pram.range[0], return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
                             else:
                                 characters = string.ascii_letters + string.digits
-                                boundary=''.join(random.choice(characters) for i in range(30))
+                                boundary = ''.join(random.choice(
+                                    characters) for i in range(30))
                                 response_body = Body.get_multi_part_folder(
-                                    filePath,range=header_pram.range, boundary=boundary,return_html=("SUSTech-HTTP=0" not in SusTech_code),chunked=need_chunk)
+                                    filePath, range=header_pram.range, boundary=boundary, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
                     elif os.path.isfile(filePath):
-                        header_builder.content_type, _ = mimetypes.guess_type(filePath)
-                        if len(header_pram.range)==1:
-                            file_content = Body.get_part_file(filePath,range=header_pram.range[0],chunked=need_chunk)
+                        header_builder.content_type, _ = mimetypes.guess_type(
+                            filePath)
+                        if len(header_pram.range) == 1:
+                            file_content = Body.get_part_file(
+                                filePath, range=header_pram.range[0], chunked=need_chunk)
                         else:
                             characters = string.ascii_letters + string.digits
-                            boundary=''.join(random.choice(characters) for i in range(30))
-                            file_content = Body.get_multi_part_file(filePath,boundary=boundary,ranges=header_pram.range,chunked=need_chunk)
+                            boundary = ''.join(random.choice(
+                                characters) for i in range(30))
+                            file_content = Body.get_multi_part_file(
+                                filePath, boundary=boundary, ranges=header_pram.range, chunked=need_chunk)
                         response_body = file_content
                     header_builder.status_code = 200
             else:
@@ -191,10 +203,10 @@ class Server(ThreadingTCP):
             header_builder.status_code = e.code
         return response_body
 
-    def __post_method(self, header_pram, body:bytes, path, username, password, header_builder: header.HeadBuilder,need_chunk:bool):
-        p_s=path.split('?',1)
-        
-        if (len(p_s)>1):
+    def __post_method(self, header_pram, body: bytes, path, username, password, header_builder: header.HeadBuilder, need_chunk: bool):
+        p_s = path.split('?', 1)
+
+        if (len(p_s) > 1):
             upload_or_del = p_s[0]
             Origin_path = p_s[1].strip()  # ex:path=/11912113/abc.py
         else:
@@ -214,7 +226,7 @@ class Server(ThreadingTCP):
                     if os.path.exists(access_path):
                         if upload_or_del == "/upload":          # upload the document
                             Body.recv_post_file(
-                                body, access_path, "uploaded_file",chunked=need_chunk)
+                                body, access_path, "uploaded_file", chunked=need_chunk)
                         elif upload_or_del == "/delete":        # delete the document
                             if os.path.exists(access_path):
                                 try:
@@ -240,10 +252,10 @@ class Server(ThreadingTCP):
             if header_pram.cookie:
                 cookie_params = header_pram.cookie.split("; ")
                 cookie_dict = {}
-                
+
                 for param in cookie_params:
-                    cookie_part=param.split("=")
-                    if len(cookie_params)>1:
+                    cookie_part = param.split("=")
+                    if len(cookie_params) > 1:
                         cookie_key = [0].lower()
                         cookie_value = param.split("=")[1].strip()
                         cookie_dict[cookie_key] = cookie_value
@@ -260,7 +272,8 @@ class Server(ThreadingTCP):
                 test_cookie = True
             if test_cookie and header_pram.authorization:
                 if header_pram.authorization.startswith("Basic "):
-                    authData = base64.b64decode(header_pram.authorization.split(" ")[-1]).decode('utf-8')
+                    authData = base64.b64decode(
+                        header_pram.authorization.split(" ")[-1]).decode('utf-8')
                     username = authData.split(':')[0]
                     password = authData.split(':')[1]
                     with open(os.path.join(self.current_file_path, 'user_data\\userDatabase.txt'), 'r') as file:
@@ -287,13 +300,13 @@ class Server(ThreadingTCP):
         characters = string.ascii_letters + string.digits
         sid = ''.join(random.choice(characters) for i in range(length))
         cookie_respond.append(f'session-id={sid};')
-        
+
         clear_time = datetime.datetime.utcnow()
         ttl = datetime.timedelta(days=ttl_in_day)
         clear_time = clear_time+ttl
-        #cookie_expires_str = clear_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
-        #cookie_respond.append(f'Expires={cookie_expires_str};')
-        #cookie_respond.append(f'Path=\\;Secure;HttpOnly')
+        # cookie_expires_str = clear_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        # cookie_respond.append(f'Expires={cookie_expires_str};')
+        # cookie_respond.append(f'Path=\\;Secure;HttpOnly')
         new_cookie = self.cookie_class(
             username=username, password=password, expire=clear_time, sid=sid)
         self.cookie_set[sid] = new_cookie

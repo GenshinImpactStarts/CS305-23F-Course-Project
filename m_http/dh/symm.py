@@ -1,19 +1,23 @@
+from math import log2
+
 __all__ = 'Symm',
 
 
 class Symm:
-    KEY_LEN = 64
+    def get_key(key: int) -> bytes:
+        return key.to_bytes(int(log2(key)+1) // 8 + 1, 'big')
 
     def encode(data: bytes, key: bytes) -> bytearray:
         result = bytearray(data)
-        i = 0
         data_len = len(data)
+        key_len = len(key)
+        i = 0
         j = 0
         while i < data_len:
             result[i] ^= key[j]
             i += 1
             j += 1
-            if j == Symm.KEY_LEN:
+            if j == key_len:
                 j = 0
         return result
 

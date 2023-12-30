@@ -13,7 +13,6 @@ class Client:
         self.headers = {"Authorization": "Basic Y2xpZW50MToxMjM="}
 
     def handle_response(self, response, method, uri=None):
-        response = response.decode()  # ?
         print("Response:\n", response)
         status_code, header_dict, body = self.parse_response(response)
         if method == "GET":
@@ -54,7 +53,8 @@ class Client:
                         chunk = file.read(4096)
                         if not chunk:
                             break
-                        temp.append(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
+                        temp.append(
+                            f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
                 temp.append(b"0\r\n\r\n")
                 return b''.join(temp)  # here TODO
 
@@ -72,7 +72,8 @@ class Client:
             return b''.join(temp)  # here TODO
 
     def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
-        request = self.compile_request(method, uri, body, headers, file_path, isChunk)
+        request = self.compile_request(
+            method, uri, body, headers, file_path, isChunk)
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
@@ -88,14 +89,15 @@ class Client:
 
                 try:
                     response_headers, response_body = self.receive_response(s)
-                    print("Response:\n",response_headers+response_body)
+                    print("Response:\n", response_headers+response_body)
                 except socket.error as e:
                     print(f"Error receiving response: {e}")
                     return
 
                 # 处理响应
 
-                status_code, header_dict, body = self.parse_response(response_headers)
+                status_code, header_dict, body = self.parse_response(
+                    response_headers)
                 if method == "GET":
                     self.handle_get_response(status_code, uri, body)
                 if "Set-Cookie" in header_dict:
@@ -176,8 +178,9 @@ class Client:
 if __name__ == "__main__":
     client = Client("127.0.0.1", 8080)
 
-    #client.send_request("GET", "/a.txt",headers=client.headers)
+    # client.send_request("GET", "/a.txt",headers=client.headers)
 
-    #client.send_request("HEAD", "/")
+    # client.send_request("HEAD", "/")
 
-    client.send_request("POST", "/", "Really want to play Genshin Impact",file_path="D:\Genshin Impact\laucher.txt",headers=client.headers)
+    client.send_request("POST", "/", "Really want to play Genshin Impact",
+                        file_path="D:\Genshin Impact\laucher.txt", headers=client.headers)
