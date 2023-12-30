@@ -84,21 +84,18 @@ class Server(ThreadingTCP):
                 header_class.get_headbuilder().status_code // 100 != 4):
             need_chunk = ('chunked=1' in path.replace(' ', ''))
             response_body = b''
-            if (method == "HEAD"):
-                header_class.get_headbuilder().status_code = 200
-            else:
-                # check identity
-                header_class.get_headbuilder().status_code, username, password = self.__load_handle(
-                    header_pram, header_class.get_headbuilder())
-                if header_class.get_headbuilder().status_code // 100 != 4:
-                    if method == "GET":
-                        response_body = self.__get_method(
-                            header_pram, path, header_class.get_headbuilder(), need_chunk)
-                    elif method == "POST":
-                        response_body = self.__post_method(
-                            header_pram, body, path, username, password, header_class.get_headbuilder(), need_chunk)
-                    else:
-                        header_class.get_headbuilder().status_code = 405
+            
+            header_class.get_headbuilder().status_code, username, password = self.__load_handle(
+                header_pram, header_class.get_headbuilder())
+            if header_class.get_headbuilder().status_code // 100 != 4:
+                if method == "GET" or "HEAD":
+                    response_body = self.__get_method(
+                        header_pram, path, header_class.get_headbuilder(), need_chunk)
+                elif method == "POST":
+                    response_body = self.__post_method(
+                        header_pram, body, path, username, password, header_class.get_headbuilder(), need_chunk)
+                else:
+                    header_class.get_headbuilder().status_code = 405
 
         if (not need_chunk):
             if (response_body is not None):
@@ -115,8 +112,12 @@ class Server(ThreadingTCP):
                     header_class.get_headbuilder().boundary
 
         header_class.get_headbuilder().connection = header_pram.connection
-        response = header_class.generate_response_headers().encode('utf-8') + \
-            b'\r\n' + response_body
+        if (method=="HEAD"):
+            response = header_class.generate_response_headers().encode('utf-8') + \
+                b'\r\n'
+        else:
+            response = header_class.generate_response_headers().encode('utf-8') + \
+                b'\r\n' + response_body
         if header_pram.connection == 'close':
             return 3, 0, response
         return 2, 0, response
@@ -161,13 +162,13 @@ class Server(ThreadingTCP):
                             header_builder.status_code = 301
                             header_builder.location = access_path+'/'
                         else:
-                            if (("SUSTech-HTTP=0" not in SusTech_code)):
-                                header_builder.content_type = 'html'
-                            else:
+                            if (("SUSTech-HTTP=1" in SusTech_code)):
                                 header_builder.content_type = 'txt'
+                            else:
+                                header_builder.content_type = 'html'
 
                             response_body = Body.get_folder(
-                                filePath, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
+                                filePath, return_html=("SUSTech-HTTP=1" not in SusTech_code), chunked=need_chunk)
                     elif os.path.isfile(filePath):
                         header_builder.content_type, _ = mimetypes.guess_type(
                             filePath)
