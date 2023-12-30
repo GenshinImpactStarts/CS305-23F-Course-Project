@@ -1,13 +1,13 @@
 # In order to help you use my code easily, I add this explanatory note in the very Beginning.
 # The only class you need to pay attention to is [class Header]
 # For a new special server, you need to use TODO"Header(your_server_name)" to initialize the header server.
-# If you want to get msg in request_line, 
+# If you want to get msg in request_line,
 #   please use TODO"parse_request_line(request)". It will return method, path, version.
-# If you want to get msg in other part of header, 
+# If you want to get msg in other part of header,
 #   please use TODO"parse_request_headers(request)".The return value is a special construct, and its member variables may be None. Moreover, body_part may be returned.
 # If you want to "generate_response_headers",
 #   please use TODO"get_headbuilder()"first.Then, fill as many member variables as possible in it.Finally,use TODO"generate_response_headers()",it will return a string for response header.
-# Attention! "generate_response_headers()" 
+# Attention! "generate_response_headers()"
 #   will initialize the headerbuilder,
 #   make sure you use TODO"get_headbuilder()" every time you want to generate a response header.
 # Have fun!
@@ -35,20 +35,21 @@ class HeadBuilder:
         self.transfer_encoding = None
         self.location = None
         self.accept_charset = None
+        self.boundary = None #not used in the header
         # optional fields
 
 
 class Headers:
     class AcceptLanguage:
         def __init__(self, header):
-            if header==None:
+            if header == None:
                 return
             self.top_priority = None
             self.possible_options = (
                 []
             )  # [(lang, weight),(lang, weight),and so on] by weight DESC
             languages = header.split(",")
-           
+
             for language in languages:
                 parts = language.strip().split(";")
                 lang = parts[0].strip()
@@ -117,7 +118,7 @@ class Header:
         if b"\r\n\r\n" in request:
             header_part, body_part = request.split(b"\r\n\r\n", 1)
             if isinstance(header_part, bytes):
-                        header_part = request.decode('utf-8')
+                header_part = request.decode('utf-8')
         else:
             if isinstance(request, bytes):
                 header_part = request.decode('utf-8')
@@ -133,15 +134,15 @@ class Header:
                 headers.accept_charset = [v.strip() for v in value.split(",")]
             elif key == "accept_language":
                 headers.accept_language = Headers.AcceptLanguage(value.strip())
-            elif key =="range":
+            elif key == "range":
                 ranges = value.strip().replace("bytes=", "").split(",")
                 range_tuples = []
                 for r in ranges:
                     start, end = r.split("-")
-                    if start=="":
-                        range_tuples.append((-int(end),None))
-                    elif end=="":
-                        range_tuples.append((int(start),None))
+                    if start == "":
+                        range_tuples.append((-int(end), None))
+                    elif end == "":
+                        range_tuples.append((int(start), None))
                     else:
                         range_tuples.append((int(start), int(end)))
                 headers.range = range_tuples
@@ -154,7 +155,8 @@ class Header:
     def generate_response_headers(self):
         string_builder = []
         string_builder.append(
-            f"HTTP/1.1 {self.head_builder.status_code} {StatusCode.get_description(self.head_builder.status_code)}\r\n"
+            f"HTTP/1.1 {self.head_builder.status_code} {
+                StatusCode.get_description(self.head_builder.status_code)}\r\n"
         )
         string_builder.append(f"Server: {self.head_builder.server_name}\r\n")
 
@@ -163,11 +165,13 @@ class Header:
                 f"Content-Type: {self.head_builder.content_type}\r\n"
             )  # maybe 'text/html; charset=utf-8'
         else:
-            pass # string_builder.append(f"Content-Type: text/html; charset=utf-8\r\n")
+            # string_builder.append(f"Content-Type: text/html; charset=utf-8\r\n")
+            pass
 
         if self.head_builder.keep_alive is not None:
             string_builder.append(
-                f"Keep-Alive: timeout={self.head_builder.keep_alive[0]}, max={self.head_builder.keep_alive[1]}\r\n"
+                f"Keep-Alive: timeout={self.head_builder.keep_alive[0]}, max={
+                    self.head_builder.keep_alive[1]}\r\n"
             )  # like 'timeout=5, max=1000'
         else:
             pass  # Who cares?
@@ -178,10 +182,8 @@ class Header:
             if self.head_builder.connection == "Keep-Alive":
                 string_builder.append(f"Connection: Keep-Alive\r\n")
         else:
-            pass #string_builder.append(f"Connection: Keep-Alive\r\n")
-        
-        
-        
+            pass  # string_builder.append(f"Connection: Keep-Alive\r\n")
+
         if self.head_builder.age is not None:
             string_builder.append(f"Age: {self.head_builder.age}\r\n")
         else:
@@ -191,16 +193,19 @@ class Header:
             string_builder.append(f"Date: {self.head_builder.date}\r\n")
         else:
             current_datetime_utc = datetime.datetime.utcnow()
-            http_date = current_datetime_utc.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            http_date = current_datetime_utc.strftime(
+                "%a, %d %b %Y %H:%M:%S GMT")
             string_builder.append(f"Date: {http_date}\r\n")
 
         if self.head_builder.set_cookie is not None:
-            string_builder.append(f"Set-Cookie: {self.head_builder.set_cookie}\r\n")
+            string_builder.append(
+                f"Set-Cookie: {self.head_builder.set_cookie}\r\n")
         else:
-            pass 
+            pass
 
         if self.head_builder.x_cache_info is not None:
-            string_builder.append(f"X-Cache-Info: {self.head_builder.x_cache_info}\r\n")
+            string_builder.append(
+                f"X-Cache-Info: {self.head_builder.x_cache_info}\r\n")
         else:
             pass  # response_headers += f"X-Cache-Info: caching\r\n" #not sure
 
@@ -210,12 +215,14 @@ class Header:
             )
         else:
             pass  # response_headers += f"Content-Length: 0\r\n"
-        
+
         if self.head_builder.transfer_encoding is not None:
-            string_builder.append(f"Transfer-Encoding: {self.head_builder.transfer_encoding}\r\n")
-        
+            string_builder.append(
+                f"Transfer-Encoding: {self.head_builder.transfer_encoding}\r\n")
+
         if self.head_builder.accept_charset is not None:
-            string_builder.append(f"Accept-Charset: {self.head_builder.accept_charset}\r\n")
+            string_builder.append(
+                f"Accept-Charset: {self.head_builder.accept_charset}\r\n")
 
         self.initialize_headbuilder()  # reset the headbuilder
         return "".join(string_builder)

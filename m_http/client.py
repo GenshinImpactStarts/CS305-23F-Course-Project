@@ -1,8 +1,9 @@
-__all__ = ("Client",)
-
 import mimetypes
 import socket
 import os
+
+__all__ = "Client",
+
 
 class Client:
     def __init__(self, host, port):
@@ -10,25 +11,32 @@ class Client:
         self.port = port
         self.cookies = {}
 
+    def handle_response(self, response, method, uri=None):
+        response = response.decode()  # ?
+        print("Response:\n", response)
+        status_code, header_dict, body = self.parse_response(response)
+        if method == "GET":
+            self.handle_get_response(status_code, uri, body)
+        if "Set-Cookie" in header_dict:
+            self.store_cookies(header_dict["Set-Cookie"])
+
     def compile_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
-        
+
         if file_path:
             mime_type, _ = mimetypes.guess_type(file_path)
             if headers is None:
                 headers = {}
             headers['Content-Type'] = mime_type or 'application/octet-stream'
 
-
         request = f"{method} {uri} HTTP/1.1\r\nHost: {self.host}\r\n"
         if self.cookies:
             request += f"Cookie: {self.format_cookies()}\r\n"
         if headers:
             for header, value in headers.items():
-                request += f"{header}: {value}\r\n"    
-            
+                request += f"{header}: {value}\r\n"
 
         if isChunk and file_path:
-            
+
             request += "Transfer-Encoding: chunked\r\n\r\n"
             temp = []
             temp.append(request.encode())
@@ -37,11 +45,12 @@ class Client:
                     chunk = file.read(4096)
                     if not chunk:
                         break
-                    temp.append(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n") 
+                    temp.append(
+                        f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
             temp.append(b"0\r\n\r\n")
-            
-            return b''.join(temp) # here TODO
-        
+
+            return b''.join(temp)  # here TODO
+
         else:
             temp = []
             if body:
@@ -53,24 +62,12 @@ class Client:
             else:
                 temp.append(request.encode())
                 temp.append(b"\r\n")
-                
-            return b''.join(temp) # here TODO    
-                
-                
-        # receive the response
-        try:
-            response_in_bytes = self.receive_response_bytes(s) 
-        except socket.error as e:
-            print(f"Error receiving response: {e}")
-            return
-        # handle the response
-        
-        #TODO decode
-        self.handle_response(response_in_bytes,method,uri)
 
-    
+            return b''.join(temp)  # here TODO
+
     def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
-        request = self.compile_request(method, uri, body, headers, file_path, isChunk)
+        request = self.compile_request(
+            method, uri, body, headers, file_path, isChunk)
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
@@ -79,52 +76,30 @@ class Client:
                     print(f"Connection to {self.host}:{self.port} timed out.")
                     return
                 except socket.gaierror:
-                    print(f"Address-related error connecting to {self.host}:{self.port}")
+                    print(
+                        f"Address-related error connecting to {self.host}:{self.port}")
                     return
                 s.sendall(request)
-                
+
                 try:
-                    response_headers,response_body = self.receive_response(s)
+                    response_headers, response_body = self.receive_response(s)
                     print("Response:\n", response_headers+response_body)
                 except socket.error as e:
                     print(f"Error receiving response: {e}")
                     return
 
                 # 处理响应
-                
-                status_code, header_dict, body = self.parse_response(response_headers)
+
+                status_code, header_dict, body = self.parse_response(
+                    response_headers)
                 if method == "GET":
                     self.handle_get_response(status_code, uri, body)
                 if "Set-Cookie" in header_dict:
                     self.store_cookies(header_dict["Set-Cookie"])
-                
-                
-                
-                
-                
+
         except socket.error as e:
             print(f"Socket error: {e}")
-            
-                    
-                
-    def receive_response_bytes(self,sock):        
-        response=b''
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            response += data
-        return response
-            
-    def handle_response(self,response,method,uri=None):
-        response = response.decode() # ?
-        print("Response:\n", response)
-        status_code, header_dict, body = self.parse_response(response)
-        if method == "GET":
-            self.handle_get_response(status_code, uri, body)
-        if "Set-Cookie" in header_dict:
-            self.store_cookies(header_dict["Set-Cookie"])
-        
+
     def format_cookies(self):
         return "; ".join(f"{key}={value}" for key, value in self.cookies.items())
 
@@ -144,7 +119,7 @@ class Client:
 
         # check chunk
         if 'transfer-encoding' in response_headers.lower() and 'chunked' in response_headers.lower():
-            return response_headers,self.receive_chunked_response(sock)
+            return response_headers, self.receive_chunked_response(sock)
         else:
             response_body = ''
             while True:
@@ -152,8 +127,8 @@ class Client:
                 if not data:
                     break
                 response_body += data
-            return response_headers,response_body
-        
+            return response_headers, response_body
+
     def receive_chunked_response(self, sock):
         response_body = ''
         while True:
@@ -166,7 +141,8 @@ class Client:
             if chunk_size == 0:
                 sock.recv(4096)  # 读取最后的空行?
                 break
-            chunk = sock.recv(chunk_size).decode(errors='ignore')  # 处理非 UTF-8 编码?
+            chunk = sock.recv(chunk_size).decode(
+                errors='ignore')  # 处理非 UTF-8 编码?
             response_body += chunk
             sock.recv(4096)  # 读取块后的空行?
         return response_body
@@ -184,7 +160,7 @@ class Client:
         headers, _, body = response.partition("\r\n\r\n")
         status_line, _, header_lines = headers.partition("\r\n")
         status_code = status_line.split(" ")[1]
-        
+
         header_dict = {}
         for line in header_lines.split("\r\n"):
             key, value = line.split(": ", 1)
@@ -200,4 +176,5 @@ if __name__ == "__main__":
 
     client.send_request("HEAD", "/")
 
-    client.send_request("POST", "/", "Really want to play Genshin Impact",file_path="D:\Genshin Impact\laucher.txt")
+    client.send_request("POST", "/", "Really want to play Genshin Impact",
+                        file_path="D:\Genshin Impact\laucher.txt")
