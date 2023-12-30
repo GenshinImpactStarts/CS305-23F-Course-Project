@@ -55,7 +55,6 @@ class Client:
             temp = []
             if body:
                 request += f"Content-Length: {len(body)}\r\n\r\n"
-                temp.append(request.encode)
                 if isinstance(body, str):
                     body = body.encode()
                 temp.append(request.encode() + body)
@@ -82,7 +81,7 @@ class Client:
 
                 try:
                     response_headers, response_body = self.receive_response(s)
-                    print("Response:\n", response_headers+response_body)
+                    print("Response:\n",response_headers+response_body)
                 except socket.error as e:
                     print(f"Error receiving response: {e}")
                     return
@@ -170,9 +169,8 @@ class Client:
 if __name__ == "__main__":
     client = Client("127.0.0.1", 8080)
 
-    client.send_request("GET", "/")
+    client.send_request("GET", "/a.txt")
 
     client.send_request("HEAD", "/")
 
-    client.send_request("POST", "/", "Really want to play Genshin Impact",
-                        file_path="D:\Genshin Impact\laucher.txt")
+    client.send_request("POST", "/", "Really want to play Genshin Impact",file_path="D:\Genshin Impact\laucher.txt")
