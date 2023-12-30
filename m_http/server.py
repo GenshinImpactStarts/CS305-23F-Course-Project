@@ -100,7 +100,7 @@ class Server(ThreadingTCP):
         else:
             header_class.get_headbuilder().transfer_encoding= 'chunked'
         if (header_pram.range):
-            if len(header_pram.range)!=1:
+            if len(header_pram.range)!=1 and header_class.get_headbuilder().boundary:
                 header_class.get_headbuilder().content_type='multipart/byteranges; boundary='+header_class.get_headbuilder().boundary
 
         header_class.get_headbuilder().connection=header_pram.connection
@@ -182,7 +182,7 @@ class Server(ThreadingTCP):
                         else:
                             characters = string.ascii_letters + string.digits
                             boundary=''.join(random.choice(characters) for i in range(30))
-                            file_content = Body.get_part_file(filePath,boundary=boundary,range=header_pram.range,chunked=need_chunk)
+                            file_content = Body.get_multi_part_file(filePath,boundary=boundary,ranges=header_pram.range,chunked=need_chunk)
                         response_body = file_content
                     header_builder.status_code = 200
             else:
@@ -285,7 +285,7 @@ class Server(ThreadingTCP):
     def __set_cookie(self, username, password, length=32, ttl_in_day=3):
         cookie_respond = []
         characters = string.ascii_letters + string.digits
-        sid = ''.join(random.choice(characters) for _ in range(length))
+        sid = ''.join(random.choice(characters) for i in range(length))
         cookie_respond.append(f'session-id={sid};')
         
         clear_time = datetime.datetime.utcnow()
@@ -297,4 +297,4 @@ class Server(ThreadingTCP):
         new_cookie = self.cookie_class(
             username=username, password=password, expire=clear_time, sid=sid)
         self.cookie_set[sid] = new_cookie
-        return sid
+        return cookie_respond
