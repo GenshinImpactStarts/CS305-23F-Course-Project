@@ -325,9 +325,12 @@ class Server(ThreadingTCP):
                                 response = 401
                     else:
                         response = 401                               # 检查用户名和密码是否匹配
+            else:
+                response = 401
         else:
             response = 401
-
+        if (username ==None):
+            response =401
         return response, username, password
 
     def __set_cookie(self, username, password, length=32, ttl_in_day=3):
