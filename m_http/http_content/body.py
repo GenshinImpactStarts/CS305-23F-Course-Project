@@ -146,7 +146,7 @@ class Body:
         return result
 
     def recv_post_file(data: bytes, dir_path: str, file_name: str, chunked: bool = False) -> None:
-        if not os.path.exists(dir_path):
+        if not os.path.exists(dir_path) or not os.path.isdir(dir_path):
             raise StatusCode(404)
         if chunked:
             data = Body.__decode_chunked_content(data)
