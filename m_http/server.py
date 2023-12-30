@@ -43,8 +43,8 @@ class Server(ThreadingTCP):
                 temp = []
                 testComplete = 0
                 body_length = 0
-                conn.sendall(response)
-
+                for i in response:
+                    conn.sendall(i)
             if testComplete == 3:
                 break
 
@@ -113,12 +113,11 @@ class Server(ThreadingTCP):
                     header_class.get_headbuilder().self_boundary
 
         header_class.get_headbuilder().connection = header_pram.connection
-        if (method == "HEAD"):
-            response = header_class.generate_response_headers().encode('utf-8') + \
-                b'\r\n'
-        else:
-            response = header_class.generate_response_headers().encode('utf-8') + \
-                b'\r\n' + response_body
+
+        response=[]  
+        response.append(header_class.generate_response_headers().encode('utf-8')+b'\r\n')  
+        if (method != "HEAD"):
+            response.append(response_body)
         if header_pram.connection == 'close':
             return 3, 0, response
         return 2, 0, response
@@ -307,10 +306,14 @@ class Server(ThreadingTCP):
             if test_cookie :
                 if header_pram.authorization:
                     if header_pram.authorization.startswith("Basic "):
-                        authData = base64.b64decode(
-                            header_pram.authorization.split(" ")[-1]).decode('utf-8')
-                        username = authData.split(':')[0]
-                        password = authData.split(':')[1]
+                        try:
+                            authData = base64.b64decode(
+                                header_pram.authorization.split(" ")[-1]).decode('utf-8')
+                        except (UnicodeDecodeError, IndexError):
+                            response =401
+                            return response ,username ,password
+                        
+                        username,password = authData.split(':',1)
                         with open(os.path.join(self.current_file_path, 'user_data\\userDatabase.txt'), 'r') as file:
                             file_contents = file.read()
                             search_string = username+'/'+password+';'
