@@ -139,11 +139,15 @@ class Header:
                 range_tuples = []
                 for r in ranges:
                     start, end = r.split("-")
+                    if end==None:
+                        raise StatusCode(416)
                     if start == "":
                         range_tuples.append((-int(end), None))
                     elif end == "":
                         range_tuples.append((int(start), None))
                     else:
+                        if int(start)>int(end):
+                            raise StatusCode(416)
                         range_tuples.append((int(start), int(end)))
                 headers.range = range_tuples
             else:
@@ -154,10 +158,7 @@ class Header:
     # before you use this method, please edit the headbuilder correctly!
     def generate_response_headers(self):
         string_builder = []
-        string_builder.append(
-            f"HTTP/1.1 {self.head_builder.status_code} {
-                StatusCode.get_description(self.head_builder.status_code)}\r\n"
-        )
+        string_builder.append(f"HTTP/1.1 {self.head_builder.status_code} {StatusCode.get_description(self.head_builder.status_code)}\r\n")
         string_builder.append(f"Server: {self.head_builder.server_name}\r\n")
 
         if self.head_builder.content_type is not None:
@@ -170,8 +171,7 @@ class Header:
 
         if self.head_builder.keep_alive is not None:
             string_builder.append(
-                f"Keep-Alive: timeout={self.head_builder.keep_alive[0]}, max={
-                    self.head_builder.keep_alive[1]}\r\n"
+                f"Keep-Alive: timeout={self.head_builder.keep_alive[0]}, max={self.head_builder.keep_alive[1]}\r\n"
             )  # like 'timeout=5, max=1000'
         else:
             pass  # Who cares?

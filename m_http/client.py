@@ -66,8 +66,7 @@ class Client:
             return b''.join(temp)  # here TODO
 
     def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
-        request = self.compile_request(
-            method, uri, body, headers, file_path, isChunk)
+        request = self.compile_request(method, uri, body, headers, file_path, isChunk)
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
@@ -90,8 +89,7 @@ class Client:
 
                 # 处理响应
 
-                status_code, header_dict, body = self.parse_response(
-                    response_headers)
+                status_code, header_dict, body = self.parse_response(response_headers)
                 if method == "GET":
                     self.handle_get_response(status_code, uri, body)
                 if "Set-Cookie" in header_dict:
