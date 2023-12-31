@@ -204,18 +204,23 @@ class Server(ThreadingTCP):
                                     characters) for i in range(30))
                                 response_body = Body.get_multi_part_folder(
                                     filePath, range=header_pram.range, boundary=self_boundary, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
+                                header_builder.self_boundary =self_boundary
                     elif os.path.isfile(filePath):
                         header_builder.content_type, _ = mimetypes.guess_type(
                             filePath)
                         if len(header_pram.range) == 1:
                             file_content = Body.get_part_file(
                                 filePath, range=header_pram.range[0], chunked=need_chunk)
+                            total_len=os.path.getsize(filePath)
+                            header_builder.content_range = Body.normailize_range(range=header_pram.range[0],
+                                                                                     total_len=total_len)+'/'+total_len
                         else:
                             characters = string.ascii_letters + string.digits
                             self_boundary = ''.join(random.choice(
                                 characters) for i in range(30))
                             file_content = Body.get_multi_part_file(
                                 filePath, boundary=self_boundary, ranges=header_pram.range, chunked=need_chunk)
+                            header_builder.self_boundary =self_boundary
                         response_body = file_content
                     if (header_pram.range):
                         header_builder.status_code = 206
