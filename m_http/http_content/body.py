@@ -22,7 +22,7 @@ class Body:
     # range: (start: int, end: int)
     # only check out of range
     def get_part_file(path: str, range: tuple, chunked: bool = False) -> bytes:
-        start, end = Body.__normailize_range(range, os.path.getsize(path))
+        start, end = Body.normailize_range(range, os.path.getsize(path))
         try:
             with open(path, 'rb') as f:
                 f.seek(start)
@@ -99,7 +99,7 @@ class Body:
     # only check out of range
     def get_part_folder(path: str, range: tuple, chunked: bool = False) -> bytes:
         result = Body.get_folder(path)
-        start, end = Body.__normailize_range(range, len(result))
+        start, end = Body.normailize_range(range, len(result))
         result = result[start:end+1]
         if chunked:
             result = Body.__get_chunked_content(result)
@@ -258,7 +258,7 @@ class Body:
         parts = []
         func[0]()
         for range in ranges:
-            start, end = Body.__normailize_range(range, total_len)
+            start, end = Body.normailize_range(range, total_len)
             parts.append((func[1](start, end+1), start, end))
         func[2]()
         # generate the body
