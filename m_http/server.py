@@ -76,7 +76,7 @@ class Server(ThreadingTCP):
                     if body_length < int(header_pram.content_length):
                         return 1, body_length, None
                 else:
-                    if (body.find(b'\r\n\r\n') == -1):
+                    if (body.find(b'0\r\n\r\n') == -1):
                         return 1, body_length, None
         else:
             header_pram.content_length = 0
@@ -163,7 +163,7 @@ class Server(ThreadingTCP):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
                             header_builder.location = os.path.basename(
-                                access_path)+'/'
+                                access_path)+'/?'+SusTech_code
                             return None
                         else:
                             if (("SUSTech-HTTP=1" in SusTech_code)):
@@ -185,7 +185,7 @@ class Server(ThreadingTCP):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
                             header_builder.location = os.path.basename(
-                                access_path)+'/'
+                                access_path)+'/?'+SusTech_code
                             return None
                         else:
                             if (("SUSTech-HTTP=0" not in SusTech_code)):
