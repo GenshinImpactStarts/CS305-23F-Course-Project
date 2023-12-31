@@ -78,7 +78,7 @@ class Server(ThreadingTCP):
                     if body_length < int(header_pram.content_length):
                         return 1, body_length, None
                 else:
-                    if (body.find(b'\r\n\r\n') == -1):
+                    if (body.find(b'0\r\n\r\n') == -1):
                         return 1, body_length, None
         else:
             header_pram.content_length = 0
@@ -308,7 +308,7 @@ class Server(ThreadingTCP):
                     cookie_part = param.split("=")
                     if len(cookie_part) > 1:
                         cookie_key = cookie_part[0].lower()
-                        cookie_value = cookie_part[1].strip()
+                        cookie_value = cookie_part[1].strip().replace(';','')
                         cookie_dict[cookie_key] = cookie_value
                 if 'session-id' in cookie_dict:
                     if cookie_dict['session-id'] in self.cookie_set:
@@ -319,8 +319,14 @@ class Server(ThreadingTCP):
                             password = cookie.password
                         else:
                             test_cookie = True
+                    else:
+                        test_cookie = True
+                else:
+                    test_cookie = True
             else:
                 test_cookie = True
+            if (username==None): 
+                test_cookie=True
             if test_cookie:
                 if header_pram.authorization:
                     if header_pram.authorization.startswith("Basic "):
