@@ -165,9 +165,9 @@ class Server(ThreadingTCP):
                             return None
                         else:
                             if (("SUSTech-HTTP=1" in SusTech_code)):
-                                header_builder.content_type = 'txt'
+                                header_builder.content_type = 'text/plain'
                             else:
-                                header_builder.content_type = 'html'
+                                header_builder.content_type = 'text/html'
 
                             response_body = Body.get_folder(
                                 filePath, return_html=("SUSTech-HTTP=1" not in SusTech_code), chunked=need_chunk)
@@ -221,7 +221,7 @@ class Server(ThreadingTCP):
             header_builder.status_code = e.code
         return response_body
 
-    def __post_method(self, header_pram:header.Headers(), body: bytes, path, username, password, 
+    def __post_method(self, header_pram:header.Headers, body: bytes, path, username, password, 
                       header_builder: header.HeadBuilder, is_chunk: bool):
         p_s = path.split('?', 1)
         header_builder.status_code = 200
@@ -250,17 +250,11 @@ class Server(ThreadingTCP):
                                 else: 
                                     header_builder.status_code = 405
                             else:
-                                Body.recv_post_file(
-
-
-
-                                    #Not yet!
-                                    body, access_path, "uploaded_file", chunked=is_chunk)
-                        
-                        
-                        
-                        
-                        
+                                if (header_pram.content_disposition and "filename" in header_pram.content_disposition):
+                                    Body.recv_post_file(
+                                        body, access_path,header_pram.content_disposition["filename"] , chunked=is_chunk)
+                                else:
+                                    header_builder.status_code = 405
                         elif upload_or_del == "/delete":        # delete the document
                             if os.path.exists(access_path):
                                 try:
