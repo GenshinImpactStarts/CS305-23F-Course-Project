@@ -35,6 +35,7 @@ class HeadBuilder:
         self.transfer_encoding = None
         self.location = None
         self.accept_charset = None
+        self.content_range =None
         self.self_boundary =None #not used in the header
         # optional fields
 
@@ -243,6 +244,9 @@ class Header:
             
         if self.head_builder.location is not None:
             string_builder.append(f"Location: {self.head_builder.location}\r\n")
+
+        if self.head_builder.content_range is not None:
+            string_builder.append(f"Content-Range: {self.head_builder.content_range}\r\n")
 
         self.initialize_headbuilder()  # reset the headbuilder
         return "".join(string_builder)

@@ -195,6 +195,9 @@ class Server(ThreadingTCP):
                             if len(header_pram.range) == 1:
                                 response_body = Body.get_part_folder(
                                     filePath, range=header_pram.range[0], return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
+                                total_len=os.path.getsize(filePath)
+                                header_builder.content_range = Body.normailize_range(range=header_pram.range[0],
+                                                                                     total_len=total_len)+'/'+total_len
                             else:
                                 characters = string.ascii_letters + string.digits
                                 self_boundary = ''.join(random.choice(
