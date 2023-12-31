@@ -82,6 +82,7 @@ class Headers:
         self.transfer_encoding = None
         self.range = None
         self.content_disposition = None #返回字典，分为type，name，filename
+        self.boundary = None
 
 
 def http_header_to_python(header):
