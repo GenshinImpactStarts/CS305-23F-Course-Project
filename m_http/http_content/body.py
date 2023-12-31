@@ -223,7 +223,7 @@ class Body:
                 except Exception:
                     raise StatusCode(400)
 
-    def __normailize_range(range: tuple, total_len: int) -> tuple:
+    def normailize_range(range: tuple, total_len: int) -> tuple:
         start, end = range
         if end == None:
             if start < 0:

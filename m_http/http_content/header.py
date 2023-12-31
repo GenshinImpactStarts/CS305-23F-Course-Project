@@ -242,7 +242,7 @@ class Header:
                 f"Accept-Charset: {self.head_builder.accept_charset}\r\n")
             
         if self.head_builder.location is not None:
-            string_builder.append(f"Location: {self.head_builder.location}")
+            string_builder.append(f"Location: {self.head_builder.location}\r\n")
 
         self.initialize_headbuilder()  # reset the headbuilder
         return "".join(string_builder)

@@ -51,7 +51,7 @@ class Server(ThreadingTCP):
 
     # the first pram is {0(header not complete),1(body not complete),2(keep alive),3(close)}
     def handle_request(self, request: bytes, header_class: header.Header, handle_state: int, body_length: int):
-        if (handle_state == 0 and not request[-1].find(b'\r\n\r\n')):
+        if (handle_state == 0 and request[-1].find(b'\r\n\r\n') == -1):
             return 0, 0, None
         if (handle_state == 0):
             join_req = b''.join(request)
@@ -76,7 +76,7 @@ class Server(ThreadingTCP):
                     if body_length < int(header_pram.content_length):
                         return 1, body_length, None
                 else:
-                    if (not body.find(b'\r\n\r\n')):
+                    if (body.find(b'\r\n\r\n') == -1):
                         return 1, body_length, None
         else:
             header_pram.content_length = 0
@@ -95,7 +95,7 @@ class Server(ThreadingTCP):
                 elif method == "POST":
                     response_body = self.__post_method(
                         header_pram, body, path, username, password, header_class.get_headbuilder(),
-                            header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked')
+                        header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked')
                 else:
                     header_class.get_headbuilder().status_code = 405
 
@@ -115,8 +115,9 @@ class Server(ThreadingTCP):
 
         header_class.get_headbuilder().connection = header_pram.connection
 
-        response=[]  
-        response.append(header_class.generate_response_headers().encode('utf-8')+b'\r\n')  
+        response = []
+        response.append(
+            header_class.generate_response_headers().encode('utf-8')+b'\r\n')
         if (method != "HEAD"):
             response.append(response_body)
         if header_pram.connection == 'close':
@@ -161,7 +162,8 @@ class Server(ThreadingTCP):
                     if os.path.isdir(filePath):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
-                            header_builder.location = access_path+'/'
+                            header_builder.location = os.path.basename(
+                                access_path)+'/'
                             return None
                         else:
                             if (("SUSTech-HTTP=1" in SusTech_code)):
@@ -182,7 +184,8 @@ class Server(ThreadingTCP):
                     if os.path.isdir(filePath):
                         if filePath[-1] != '/':
                             header_builder.status_code = 301
-                            header_builder.location = access_path+'/'
+                            header_builder.location = os.path.basename(
+                                access_path)+'/'
                             return None
                         else:
                             if (("SUSTech-HTTP=0" not in SusTech_code)):
@@ -221,7 +224,7 @@ class Server(ThreadingTCP):
             header_builder.status_code = e.code
         return response_body
 
-    def __post_method(self, header_pram:header.Headers, body: bytes, path, username, password, 
+    def __post_method(self, header_pram: header.Headers, body: bytes, path, username, password,
                       header_builder: header.HeadBuilder, is_chunk: bool):
         p_s = path.split('?', 1)
         header_builder.status_code = 200
@@ -244,26 +247,27 @@ class Server(ThreadingTCP):
                     access_path = access_path.replace('\\', '/')
                     if os.path.exists(access_path):
                         if upload_or_del == "/upload":          # upload the document
-                            if header_pram.content_type.find('multipart/form-data'):
+                            if header_pram.content_type.find('multipart/form-data') != -1:
                                 if (header_pram.boundary is not None):
-                                    Body.recv_multi_part_file(body,header_pram.boundary,is_chunk)
-                                else: 
+                                    Body.recv_post_multi_part_file(
+                                        body, access_path, header_pram.boundary)
+                                else:
                                     header_builder.status_code = 405
                             else:
                                 if (header_pram.content_disposition and "filename" in header_pram.content_disposition):
                                     Body.recv_post_file(
-                                        body, access_path,header_pram.content_disposition["filename"] , chunked=is_chunk)
+                                        body, access_path, header_pram.content_disposition["filename"], chunked=is_chunk)
                                 else:
                                     header_builder.status_code = 405
                         elif upload_or_del == "/delete":        # delete the document
                             if os.path.exists(access_path):
                                 try:
                                     if os.path.isdir(access_path):
-                                        if (access_path=='/'):
-                                            header_builder.status_code =400
+                                        if (access_path == '/'):
+                                            header_builder.status_code = 400
                                         else:
                                             shutil.rmtree(access_path)
-                                    if os.path.isfile(access_path): 
+                                    if os.path.isfile(access_path):
                                         os.remove(access_path)
                                 except Exception as e:
                                     header_builder.status_code
@@ -293,7 +297,7 @@ class Server(ThreadingTCP):
                     cookie_part = param.split("=")
                     if len(cookie_part) > 1:
                         cookie_key = cookie_part[0].lower()
-                        cookie_value =cookie_part[1].strip()
+                        cookie_value = cookie_part[1].strip()
                         cookie_dict[cookie_key] = cookie_value
                 if 'session-id' in cookie_dict:
                     if cookie_dict['session-id'] in self.cookie_set:
@@ -306,17 +310,17 @@ class Server(ThreadingTCP):
                             test_cookie = True
             else:
                 test_cookie = True
-            if test_cookie :
+            if test_cookie:
                 if header_pram.authorization:
                     if header_pram.authorization.startswith("Basic "):
                         try:
                             authData = base64.b64decode(
                                 header_pram.authorization.split(" ")[-1]).decode('utf-8')
                         except (UnicodeDecodeError, IndexError):
-                            response =401
-                            return response ,username ,password
-                        
-                        username,password = authData.split(':',1)
+                            response = 401
+                            return response, username, password
+
+                        username, password = authData.split(':', 1)
                         with open(os.path.join(self.current_file_path, 'user_data\\userDatabase.txt'), 'r') as file:
                             file_contents = file.read()
                             search_string = username+'/'+password+';'
@@ -328,12 +332,12 @@ class Server(ThreadingTCP):
                                 response = 401
                     else:
                         response = 401                               # 检查用户名和密码是否匹配
-            else:
-                response = 401
+                else:
+                    response = 401
         else:
             response = 401
-        if (username ==None):
-            response =401
+        if (username == None):
+            response = 401
         return response, username, password
 
     def __set_cookie(self, username, password, length=32, ttl_in_day=3):
@@ -352,5 +356,5 @@ class Server(ThreadingTCP):
             username=username, password=password, expire=clear_time, sid=sid)
         self.cookie_set[sid] = new_cookie
 
-        set_cookie=''.join(cookie_respond)
+        set_cookie = ''.join(cookie_respond)
         return set_cookie
