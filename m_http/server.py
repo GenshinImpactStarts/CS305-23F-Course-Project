@@ -17,6 +17,8 @@ __all__ = 'Server',
 
 
 class Server(ThreadingTCP):
+    COOKIE_DDL = datetime.timedelta(minutes=3)
+
     class cookie_class:
         def __init__(self, username: str, password: str, expire, sid):
             self.sid = sid
@@ -195,7 +197,7 @@ class Server(ThreadingTCP):
                             if len(header_pram.range) == 1:
                                 response_body = Body.get_part_folder(
                                     filePath, range=header_pram.range[0], return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
-                                total_len=os.path.getsize(filePath)
+                                total_len = os.path.getsize(filePath)
                                 header_builder.content_range = Body.normailize_range(range=header_pram.range[0],
                                                                                      total_len=total_len)+'/'+total_len
                             else:
@@ -204,23 +206,24 @@ class Server(ThreadingTCP):
                                     characters) for i in range(30))
                                 response_body = Body.get_multi_part_folder(
                                     filePath, range=header_pram.range, boundary=self_boundary, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
-                                header_builder.self_boundary =self_boundary
+                                header_builder.self_boundary = self_boundary
                     elif os.path.isfile(filePath):
                         header_builder.content_type, _ = mimetypes.guess_type(
                             filePath)
                         if len(header_pram.range) == 1:
                             file_content = Body.get_part_file(
                                 filePath, range=header_pram.range[0], chunked=need_chunk)
-                            total_len=os.path.getsize(filePath)
-                            header_builder.content_range = Body.normailize_range(range=header_pram.range[0],
-                                                                                     total_len=total_len)+'/'+total_len
+                            total_len = os.path.getsize(filePath)
+                            header_pram.range[0] = Body.normailize_range(
+                                header_pram.range[0], total_len)
+                            header_builder.content_range = f'{header_pram.range[0][0]}-{header_pram.range[0][1]}/{total_len}'
                         else:
                             characters = string.ascii_letters + string.digits
                             self_boundary = ''.join(random.choice(
                                 characters) for i in range(30))
                             file_content = Body.get_multi_part_file(
                                 filePath, boundary=self_boundary, ranges=header_pram.range, chunked=need_chunk)
-                            header_builder.self_boundary =self_boundary
+                            header_builder.self_boundary = self_boundary
                         response_body = file_content
                     if (header_pram.range):
                         header_builder.status_code = 206
@@ -348,15 +351,14 @@ class Server(ThreadingTCP):
             response = 401
         return response, username, password
 
-    def __set_cookie(self, username, password, length=32, ttl_in_day=3):
+    def __set_cookie(self, username, password, length=32):
         cookie_respond = []
         characters = string.ascii_letters + string.digits
         sid = ''.join(random.choice(characters) for i in range(length))
         cookie_respond.append(f'session-id={sid};')
 
         clear_time = datetime.datetime.utcnow()
-        ttl = datetime.timedelta(days=ttl_in_day)
-        clear_time = clear_time+ttl
+        clear_time = clear_time+Server.COOKIE_DDL
         # cookie_expires_str = clear_time.strftime("%a, %d %b %Y %H:%M:%S GMT")
         # cookie_respond.append(f'Expires={cookie_expires_str};')
         # cookie_respond.append(f'Path=\\;Secure;HttpOnly')
