@@ -81,7 +81,7 @@ class Headers:
         self.user_agent = None
         self.transfer_encoding = None
         self.range = None
-        self.content_disposition = None #返回字典，分为type，name，filename
+        self.content_disposition = None # 返回字典，分为type，name，filename
         self.boundary = None
 
 
@@ -159,6 +159,14 @@ class Header:
                     key, val = part.split("=", 1)
                     disposition_info[key.strip()] = val.strip(' "')
                 headers.content_disposition = disposition_info
+            elif key == "content_type":
+                parts = [part.strip() for part in value.split(";")]
+                headers.content_type = parts[0]
+                for part in parts[1:]:
+                    key, val = part.split("=", 1)
+                    if key == "boundary":
+                        headers.boundary = val
+                    
             else:
                 setattr(headers, key, value.strip())
 
