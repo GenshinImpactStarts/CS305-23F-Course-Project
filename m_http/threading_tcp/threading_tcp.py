@@ -35,7 +35,7 @@ class ThreadingTCP:
                     thread.start()
                     self.__conns.add(conn)
                     self.__threads.add(thread)
-                    self.__print(f'receive new request from {addr}')
+                    self.__print(f'receive new request from {addr}. now connections: {self.connection_cnt()}')
                 except Exception:
                     # TODO
                     self.__running = False
@@ -100,5 +100,5 @@ class ThreadingTCP:
                 conn.close()
             except Exception:
                 pass
-            self.__print(f'close request from {addr}')
             self.__list_maintainer.remove((current_thread(), conn))
+            self.__print(f'close request from {addr}. connections will be: {self.connection_cnt()-1}')
