@@ -81,6 +81,7 @@ class Headers:
         self.user_agent = None
         self.transfer_encoding = None
         self.range = None
+        self.content_disposition = None #返回字典，分为type，name，filename
 
 
 def http_header_to_python(header):
@@ -150,6 +151,13 @@ class Header:
                             raise StatusCode(416)
                         range_tuples.append((int(start), int(end)))
                 headers.range = range_tuples
+            elif key == "content_disposition":
+                parts = [part.strip() for part in value.split(";")]
+                disposition_info = {"type": parts[0]}
+                for part in parts[1:]:
+                    key, val = part.split("=", 1)
+                    disposition_info[key.strip()] = val.strip(' "')
+                headers.content_disposition = disposition_info
             else:
                 setattr(headers, key, value.strip())
 
@@ -223,6 +231,9 @@ class Header:
         if self.head_builder.accept_charset is not None:
             string_builder.append(
                 f"Accept-Charset: {self.head_builder.accept_charset}\r\n")
+            
+        if self.head_builder.location is not None:
+            string_builder.append(f"Location: {self.head_builder.location}")
 
         self.initialize_headbuilder()  # reset the headbuilder
         return "".join(string_builder)
