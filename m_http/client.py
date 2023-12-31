@@ -85,10 +85,12 @@ class Client:
                     print(
                         f"Address-related error connecting to {self.host}:{self.port}")
                     return
+                print("request:\n",request.decode())
                 s.sendall(request)
 
                 try:
                     response_headers, response_body = self.receive_response(s)
+
                     print("Response:\n", response_headers+response_body)
                 except socket.error as e:
                     print(f"Error receiving response: {e}")
@@ -115,22 +117,26 @@ class Client:
             key, value = cookie.split("=", 1)
             self.cookies[key] = value
 
-    def receive_response(self, sock):
+    def receive_response(self, sock: socket.socket):
         response_headers = ''
         while True:
             line = sock.recv(4096).decode()
-            if not line or line == '\r\n':
-                break
             response_headers += line
+            if line.find('\r\n\r\n') != -1:
+                break
+            
 
         # check chunk
         if 'transfer-encoding' in response_headers.lower() and 'chunked' in response_headers.lower():
             return response_headers, self.receive_chunked_response(sock)
         else:
+            response_headers,_,response_body=response_headers.partition('\r\n\r\n')
+            return response_headers+_,response_body
+        #else:
             response_body = ''
             while True:
                 data = sock.recv(4096).decode()
-                if not data:
+                if data.find('\r\n\r\n') != -1:
                     break
                 response_body += data
             return response_headers, response_body
@@ -178,9 +184,9 @@ class Client:
 if __name__ == "__main__":
     client = Client("127.0.0.1", 8080)
 
-    # client.send_request("GET", "/a.txt",headers=client.headers)
+    client.send_request("GET", "/a.txt",headers=client.headers)
 
-    # client.send_request("HEAD", "/")
+    client.send_request("HEAD", "/",headers=client.headers)
 
     client.send_request("POST", "/", "Really want to play Genshin Impact",
                         file_path="D:\Genshin Impact\laucher.txt", headers=client.headers)

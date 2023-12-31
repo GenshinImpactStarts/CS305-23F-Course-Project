@@ -104,7 +104,7 @@ print()
 
 #3.1
 print('3.1')
-files = {"firstFile": open('tmp/a.txt', "rb")}
+files = {"firstFile": open('data/a.txt', "rb")}
 data={}
 headers={"Authorization": "Basic Y2xpZW50MToxMjM="}
 r=requests.post(url=URL+'/upload?path=client1/',data=data,headers=headers, files=files)
@@ -117,7 +117,7 @@ print()
 print('3.2')
 url=URL+'/delete?path=client1/a.py'
 headers={"Authorization": "Basic Y2xpZW50MToxMjM="}
-r=requests.post(url=URL, headers=headers)
+r=requests.post(url=url, headers=headers)
 print(r)
 print()
 
