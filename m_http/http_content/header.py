@@ -35,7 +35,7 @@ class HeadBuilder:
         self.transfer_encoding = None
         self.location = None
         self.accept_charset = None
-        self.boundary = None #not used in the header
+        self.self_boundary =None #not used in the header
         # optional fields
 
 
