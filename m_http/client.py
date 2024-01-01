@@ -10,7 +10,7 @@ class Client:
         self.host = host
         self.port = port
         self.cookies = {}
-        self.headers = {"Authorization": "Basic Y2xpZW50MToxMjM="}
+        self.headers = {"Authorization": "Basic Y2xpZW50MjoxMjM="}
 
     def handle_response(self, response, method, uri=None):
         print("Response:\n", response)
@@ -197,4 +197,4 @@ if __name__ == "__main__":
     
     client.headers["Content-Disposition"]="form-data; name=\"file\"; filename=\"laucher.txt\""
     
-    client.send_request("POST", "/upload?path=client1/",file_path="D:\Genshin Impact\laucher.txt", headers=client.headers,isChunk=True)
+    client.send_request("POST", "/upload?path=client2/",file_path="D:\Genshin Impact\laucher.txt", headers=client.headers,isChunk=True)
