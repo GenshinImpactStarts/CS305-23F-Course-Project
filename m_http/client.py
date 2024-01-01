@@ -99,7 +99,7 @@ class Client:
                 # 处理响应
 
                 status_code, header_dict, body = self.parse_response(
-                    response_headers)
+                    response_headers+response_body,method,uri)
                 if method == "GET":
                     self.handle_get_response(status_code, uri, body)
                 if "Set-Cookie" in header_dict:
@@ -124,8 +124,7 @@ class Client:
             response_headers += line
             if line.find('\r\n\r\n') != -1:
                 break
-            
-
+        
         # check chunk
         if 'transfer-encoding' in response_headers.lower() and 'chunked' in response_headers.lower():
             return response_headers, self.receive_chunked_response(sock)
@@ -168,7 +167,9 @@ class Client:
         else:
             print(f"GET request failed with status code: {status_code}")
 
-    def parse_response(self, response):
+    def parse_response(self, response,method,uri):
+        if isinstance(response,bytes):
+            response=response.decode()
         headers, _, body = response.partition("\r\n\r\n")
         status_line, _, header_lines = headers.partition("\r\n")
         status_code = status_line.split(" ")[1]
@@ -177,7 +178,11 @@ class Client:
         for line in header_lines.split("\r\n"):
             key, value = line.split(": ", 1)
             header_dict[key] = value
-
+        if method == "GET":
+            self.handle_get_response(status_code, uri, body)
+        if "Set-Cookie" in header_dict:
+            self.store_cookies(header_dict["Set-Cookie"])
+        
         return status_code, header_dict, body
 
 
