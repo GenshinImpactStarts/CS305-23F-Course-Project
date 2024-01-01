@@ -144,7 +144,7 @@ class Header:
                 for r in ranges:
                     if r.find('-')==-1:
                         raise StatusCode(416)
-                    start, end = r.split("-")
+                    start, end = r.split("-",1)
                     if start and not end:
                         if start.isdigit():
                             range_tuples.append((int(start), None))
