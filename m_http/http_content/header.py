@@ -132,6 +132,8 @@ class Header:
         for line in lines[1:]:
             if line == "":
                 break
+            if(line.find(": ")==-1):
+                continue
             key, value = line.split(": ", 1)
             key = http_header_to_python(key.strip())
             if key == "accept_charset":
