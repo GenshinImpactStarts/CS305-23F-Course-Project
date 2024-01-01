@@ -14,10 +14,13 @@ def input_with_quit(text: str) -> str:
 
 
 if __name__ == "__main__":
-    server = Server(("127.0.0.1", 8000), 9999)
+    server = Server(("127.0.0.1", 7000), 9999)
     server.start()
-    client = Client("127.0.0.1", 8000)
-    client.connect()
+    client = Client("127.0.0.1", 7000)
+    if not client.connect():
+        print('fail to connect')
+        server.stop()
+        exit(1)
     try:
         while True:
             method = input_with_quit('method(GET, POST):').upper()
@@ -29,6 +32,7 @@ if __name__ == "__main__":
                             base64.b64encode(f'{USER_NAME}:{USER_PWD}'.encode()).decode()}
             file_path = None
             is_chunk = False
-            client.send(method, url, body, headers, file_path, is_chunk)
+            print(bytes(client.send(method, url, body, headers, file_path, is_chunk)))
     finally:
         server.stop()
+        pass

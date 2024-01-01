@@ -4,22 +4,32 @@ __all__ = 'Symm',
 
 
 class Symm:
-    def get_key(key: int) -> bytes:
-        return key.to_bytes(int(log2(key)+1) // 8 + 1, 'big')
+    def __init__(self, key: int):
+        self.key = key.to_bytes(int(log2(key)+1) // 8 + 1, 'big')
+        self.key_len = len(self.key)
+        self.encode_key_idx = 0
+        self.decode_key_idx = 0
 
-    def encode(data: bytes, key: bytes) -> bytearray:
+    def encode(self, data: bytes) -> bytearray:
         result = bytearray(data)
         data_len = len(data)
-        key_len = len(key)
         i = 0
-        j = 0
         while i < data_len:
-            result[i] ^= key[j]
+            result[i] ^= self.key[self.encode_key_idx]
             i += 1
-            j += 1
-            if j == key_len:
-                j = 0
+            self.encode_key_idx += 1
+            if self.encode_key_idx == self.key_len:
+                self.encode_key_idx = 0
         return result
 
-    def decode(data: bytes, key: bytes) -> bytearray:
-        return Symm.encode(data, key)
+    def decode(self, data: bytes) -> bytearray:
+        result = bytearray(data)
+        data_len = len(data)
+        i = 0
+        while i < data_len:
+            result[i] ^= self.key[self.decode_key_idx]
+            i += 1
+            self.decode_key_idx += 1
+            if self.decode_key_idx == self.key_len:
+                self.decode_key_idx = 0
+        return result

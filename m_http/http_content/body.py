@@ -7,6 +7,10 @@ __all__ = 'Body',
 
 class Body:
     CHUNK_UNIT_SIZE = 0x400
+    UNSAFE_CHAR = [i > 0x7f or chr(i) in
+                   [' ', ':', '?', '#', '[', ']', '@', '!',
+                   '$', '&', ',', '(', ')', '*', '+', ',', ';', '=', '%']
+                   for i in range(0x100)]
 
     def get_file(path: str, chunked: bool = False) -> bytes:
         try:
@@ -76,11 +80,12 @@ class Body:
             html_list.append(f'<li><a href="./">./</a></li>'.encode())
             html_list.append(f'<li><a href="../">../</a></li>'.encode())
             for file_name in sorted(os.listdir(path)):
-                file_name = Body.encode_url(file_name)
                 if os.path.isdir(os.path.join(path, file_name)):
                     file_name = file_name+'/'
+                link_name = Body.encode_url(file_name)
+                file_name = file_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 html_list.append(
-                    f'<li><a href="{file_name}">{file_name}</a></li>'.encode())
+                    f'<li><a href="{link_name}">{file_name}</a></li>'.encode())
             html_list.append(b'</ul>')
             html_list.append(b'<hr>')
             html_list.append(b'</body>')
@@ -235,12 +240,38 @@ class Body:
         return (start, end)
 
     def encode_url(url: str) -> str:
-        return url.replace(':', '%3A').replace('/', '%2F').replace('?', '%3F').replace('#', '%23').replace('[', '%5B').replace(']', '%5D').replace('@', '%40').replace('!', '%21').replace('$', '%24').replace('&', '%26').replace(',', '%2C').replace('(', '%28').replace(
-            ')', '%29').replace('*', '%2A').replace('+', '%2B').replace(',', '%2C').replace(';', '%3B').replace('=', '%3D').replace(' ', '%20')
+        input_bytes = url.encode()
+        output_bytes = bytearray(len(input_bytes)*3)
+        idx = 0
+        for i in input_bytes:
+            if Body.UNSAFE_CHAR[i]:
+                tmp = hex(i)[2:].upper()
+                output_bytes[idx] = 37  # ord('%') = 37
+                output_bytes[idx+1] = ord(tmp[0])
+                output_bytes[idx+2] = ord(tmp[1])
+                idx += 3
+            else:
+                output_bytes[idx] = i
+                idx += 1
+        return output_bytes[:idx].decode()
 
     def decode_url(url: str) -> str:
-        return url.replace('%3A', ':').replace('%2F', '/').replace('%3F', '?').replace('%23', '#').replace('%5B', '[').replace('%5D', ']').replace('%40', '@').replace('%21', '!').replace('%24', '$').replace('%26', '&').replace('%2C', ',').replace('%28', '(').replace(
-            '%29', ')').replace('%2A', '*').replace('%2B', '+').replace('%2C', ',').replace('%3B', ';').replace('%3D', '=').replace('%20', ' ')
+        input_bytes = url.encode()
+        output_bytes = bytearray(len(input_bytes))
+        input_idx = 0
+        output_idx = 0
+        input_end = len(input_bytes)
+        while input_idx < input_end:
+            if input_bytes[input_idx] == 37:
+                output_bytes[output_idx] = int(
+                    input_bytes[input_idx+1:input_idx+3], 16)
+                input_idx += 3
+                output_idx += 1
+            else:
+                output_bytes[output_idx] = input_bytes[input_idx]
+                input_idx += 1
+                output_idx += 1
+        return output_bytes[:output_idx].decode()
 
     def __get_chunked_content(content: bytes) -> bytes:
         idx = 0

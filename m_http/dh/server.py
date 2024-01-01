@@ -21,7 +21,8 @@ class Server(HTTPServer):
         self.ok_respond = RespondType.ok + b'\r\n'
         self.reject_respond = RespondType.err + b'\r\n'
         self.p_len = int(log10(p))+1
-        print(f'public key: {self.public_key}')
+        self.print(f'public key (A, g, p): {self.public_key}, {self.g}, {self.p}')
+        self.print(f'private key (a): {self.private_key}')
 
     def handle(self, conn: socket.socket, addr: tuple):
         while True:
@@ -47,36 +48,37 @@ class Server(HTTPServer):
                         raise Exception()
                     session_key = int(
                         response_key) ** self.private_key % self.p
-                    print(session_key)
-                    session_key = Symm.get_key(session_key)
+                    self.print(f'server session key (K): {session_key}')
+                    coder = Symm(session_key)
                     conn.sendall(self.ok_respond)
                     conn.settimeout(None)
                     temp = []
                     testComplete = 0
                     body_length = 0
                     header_class = Header()
+                    header_pram_temp_in_handle=None
                     while True:
                         receive = conn.recv(2048)
-                        receive = Symm.decode(receive, session_key)
+                        receive = coder.decode(receive)
                         if receive == b'':
                             break
                         temp.append(receive)
-                        testComplete, body_length, response = self.handle_request(
-                            temp, header_class, testComplete, body_length)
-                        response = Symm.encode(response, session_key)
+                        testComplete, body_length, response,header_pram_temp_in_handle = self.handle_request(
+                            temp, header_class, testComplete, body_length,header_pram_temp_in_handle)
+
                         if (testComplete == 2 or testComplete == 3):
                             temp = []
                             testComplete = 0
                             body_length = 0
-                            conn.sendall(response)
+                            header_pram_temp_in_handle =None
+                            for i in response:
+                                i = coder.encode(i)
+                                conn.sendall(bytes(i))
                         if testComplete == 3:
                             break
                 # unmatched request
                 else:
                     raise Exception()
 
-            except Exception:
-                try:
-                    conn.sendall(self.reject_respond)
-                except Exception:
-                    pass
+            except Exception as e:
+                conn.sendall(self.reject_respond)

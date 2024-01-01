@@ -143,7 +143,7 @@ class Server(ThreadingTCP):
     # return the status_code and response_data
     def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder,
                      need_chunk: bool):
-        if (path[:13] == 'upload?path=') or (path[:13] == 'delete?path='):
+        if (path[:13] == '/upload?path=') or (path[:13] == '/delete?path='):
             header_builder.status_code = 405
             return
         path_part = path.split('?')
@@ -356,7 +356,7 @@ class Server(ThreadingTCP):
                         try:
                             authData = base64.b64decode(
                                 header_pram.authorization.split(" ")[-1]).decode('utf-8')
-                        except (UnicodeDecodeError, IndexError):
+                        except Exception:
                             response = 401
                             return response, username, password
 
