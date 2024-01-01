@@ -314,7 +314,7 @@ class Server(ThreadingTCP):
                     if cookie_dict['session-id'] in self.cookie_set:
                         cookie = self.cookie_set[cookie_dict['session-id']]
                         ddl = cookie.expire
-                        if ddl is not None and ddl > datetime.datetime.now():
+                        if ddl is not None and ddl > datetime.datetime.utcnow():
                             username = cookie.username
                             password = cookie.password
                         else:
