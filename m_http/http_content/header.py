@@ -118,6 +118,7 @@ class Header:
     # parse the others!
 
     def parse_request_headers(request):
+        errorCode=None
         if b"\r\n\r\n" in request:
             header_part, body_part = request.split(b"\r\n\r\n", 1)
             if isinstance(header_part, bytes):
@@ -143,26 +144,33 @@ class Header:
 
                 for r in ranges:
                     if r.find('-')==-1:
-                        raise StatusCode(416)
+                        errorCode=416
+                        break
                     start, end = r.split("-",1)
                     if start and not end:
                         if start.isdigit():
                             range_tuples.append((int(start), None))
                         else:
-                            raise StatusCode(416)
+                            errorCode=416
+                            break
                     elif not start and end:
                         if end.isdigit():
                             range_tuples.append((-int(end), None))
                         else:
-                            raise StatusCode(416)
+                            errorCode=416
+                            break
                     elif start and end:
                         if start.isdigit() and end.isdigit() and int(start) <= int(end):
                             range_tuples.append((int(start), int(end)))
                         else:
-                            raise StatusCode(416)
+                            errorCode=416
+                            break
                     else:
-                        raise StatusCode(416)
-                headers.range = range_tuples
+                        errorCode=416
+                        break
+                    
+                if errorCode!=416:
+                    headers.range = range_tuples
             elif key == "content_disposition":
                 parts = [part.strip() for part in value.split(";")]
                 disposition_info = {"type": parts[0]}
@@ -181,7 +189,7 @@ class Header:
             else:
                 setattr(headers, key, value.strip())
 
-        return headers, body_part
+        return headers, body_part,errorCode
 
     # before you use this method, please edit the headbuilder correctly!
     def generate_response_headers(self):
