@@ -185,7 +185,7 @@ class Header:
                     key, val = part.split("=", 1)
                     if key == "boundary":
                         headers.boundary = val
-                    
+
             else:
                 setattr(headers, key, value.strip())
 
