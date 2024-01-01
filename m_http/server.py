@@ -26,6 +26,14 @@ class Server(ThreadingTCP):
             self.password = password
             self.expire = expire
 
+    class header_pram_temp:
+        def __init__(self, method: str, path: str, version: str, header_pram: header.Headers, body: bytes):
+            self.method = method
+            self.path = path
+            self.version = version
+            self.header_pram = header_pram
+            self.body = body
+
     cookie_set = {}
     current_file_path = '.'
 
@@ -34,27 +42,29 @@ class Server(ThreadingTCP):
         testComplete = 0
         body_length = 0
         header_class = header.Header()
+        header_pram_temp_in_handle=None
         while True:
             receive = conn.recv(2048)
             if receive == b'':
                 break
             temp.append(receive)
-            testComplete, body_length, response = self.handle_request(
-                temp, header_class, testComplete, body_length)
+            testComplete, body_length, response,header_pram_temp_in_handle = self.handle_request(
+                temp, header_class, testComplete, body_length,header_pram_temp_in_handle)
 
             if (testComplete == 2 or testComplete == 3):
                 temp = []
                 testComplete = 0
                 body_length = 0
+                header_pram_temp_in_handle =None
                 for i in response:
                     conn.sendall(i)
             if testComplete == 3:
                 break
 
     # the first pram is {0(header not complete),1(body not complete),2(keep alive),3(close)}
-    def handle_request(self, request: bytes, header_class: header.Header, handle_state: int, body_length: int):
+    def handle_request(self, request: bytes, header_class: header.Header, handle_state: int, body_length: int,header_store:header_pram_temp):
         if (handle_state == 0 and request[-1].find(b'\r\n\r\n') == -1):
-            return 0, 0, None
+            return 0, 0, None,None
         if (handle_state == 0):
             join_req = b''.join(request)
             temp_req = join_req.split(b'\r\n\r\n', 1)
@@ -63,41 +73,45 @@ class Server(ThreadingTCP):
             if (len(temp_req) > 1):
                 rest = temp_req[1]
             request = [tempHeader, rest]
-            try:
-                method, path, version = header.Header.parse_request_line(
+            
+            method, path, version = header.Header.parse_request_line(
                     join_req)
-                header_pram, body = header.Header.parse_request_headers(
+            header_pram, body ,err_code= header.Header.parse_request_headers(
                     join_req)
-            except StatusCode as e:
-                header_class.get_headbuilder().status_code = e.code
+            if (err_code is not None):
+                header_class.get_headbuilder().status_code=err_code
+            path = Body.decode_url(path)
+            header_store=self.header_pram_temp(method,path,version,header_pram,body)
+            
 
+            
         body_length += len(request[-1])
-        if (header_pram.content_length != 0):
-            if (header_pram.content_length is not None) or (header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked'):
-                if (header_pram.content_length is not None):
-                    if body_length < int(header_pram.content_length):
-                        return 1, body_length, None
+        if (header_store.header_pram.content_length != 0):
+            if (header_store.header_pram.content_length is not None) or (header_store.header_pram.transfer_encoding is not None and header_store.header_pram.transfer_encoding.lower() == 'chunked'):
+                if (header_store.header_pram.content_length is not None):
+                    if body_length < int(header_store.header_pram.content_length):
+                        return 1, body_length, None,header_store
                 else:
-                    if (body.find(b'0\r\n\r\n') == -1):
-                        return 1, body_length, None
+                    if (header_store.body.find(b'0\r\n\r\n') == -1):
+                        return 1, body_length, None,header_store
         else:
-            header_pram.content_length = 0
+            header_store.header_pram.content_length = 0
 
         if (header_class.get_headbuilder().status_code == None or
                 header_class.get_headbuilder().status_code // 100 != 4):
-            need_chunk = ('chunked=1' in path.replace(' ', ''))
+            need_chunk = ('chunked=1' in header_store.path.replace(' ', ''))
             response_body = b''
 
             header_class.get_headbuilder().status_code, username, password = self.__load_handle(
-                header_pram, header_class.get_headbuilder())
+                header_store.header_pram, header_class.get_headbuilder())
             if header_class.get_headbuilder().status_code // 100 != 4:
-                if method == "GET" or method == "HEAD":
+                if header_store.method == "GET" or header_store.method == "HEAD":
                     response_body = self.__get_method(
-                        header_pram, path, header_class.get_headbuilder(), need_chunk)
-                elif method == "POST":
+                        header_store.header_pram, header_store.path, header_class.get_headbuilder(), need_chunk)
+                elif header_store.method == "POST":
                     response_body = self.__post_method(
-                        header_pram, body, path, username, password, header_class.get_headbuilder(),
-                        header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked')
+                        header_store.header_pram, header_store.body, header_store.path, username, password, header_class.get_headbuilder(),
+                        header_store.header_pram.transfer_encoding is not None and header_pram.transfer_encoding.lower() == 'chunked')
                 else:
                     header_class.get_headbuilder().status_code = 405
 
@@ -110,21 +124,21 @@ class Server(ThreadingTCP):
         else:
             header_class.get_headbuilder().transfer_encoding = 'chunked'
 
-        if (header_pram.range):
-            if len(header_pram.range) != 1 and header_class.get_headbuilder().self_boundary:
+        if (header_store.header_pram.range):
+            if len(header_store.header_pram.range) != 1 and header_class.get_headbuilder().self_boundary:
                 header_class.get_headbuilder().content_type = 'multipart/byteranges; boundary=' + \
                     header_class.get_headbuilder().self_boundary
 
-        header_class.get_headbuilder().connection = header_pram.connection
+        header_class.get_headbuilder().connection = header_store.header_pram.connection
 
         response = []
         response.append(
             header_class.generate_response_headers().encode('utf-8')+b'\r\n')
-        if (method != "HEAD"):
+        if (header_store.method != "HEAD"):
             response.append(response_body)
-        if header_pram.connection == 'close':
-            return 3, 0, response
-        return 2, 0, response
+        if header_store.header_pram.connection == 'close':
+            return 3, 0, response,None
+        return 2, 0, response,None
 
     # return the status_code and response_data
     def __get_method(self, header_pram: header.Headers, path, header_builder: header.HeadBuilder,
@@ -211,7 +225,7 @@ class Server(ThreadingTCP):
                                 self_boundary = ''.join(random.choice(
                                     characters) for i in range(30))
                                 response_body = Body.get_multi_part_folder(
-                                    filePath, range=header_pram.range, boundary=self_boundary, 
+                                    filePath, range=header_pram.range, boundary=self_boundary,
                                     return_html=("SUSTech-HTTP=1" not in SusTech_code), chunked=need_chunk)
                                 header_builder.self_boundary = self_boundary
                     elif os.path.isfile(filePath):
@@ -223,7 +237,8 @@ class Server(ThreadingTCP):
                             total_len = os.path.getsize(filePath)
                             header_pram.range[0] = Body.normailize_range(
                                 header_pram.range[0], total_len)
-                            header_builder.content_range = f'{header_pram.range[0][0]}-{header_pram.range[0][1]}/{total_len}'
+                            header_builder.content_range = f'{
+                                header_pram.range[0][0]}-{header_pram.range[0][1]}/{total_len}'
                         else:
                             characters = string.ascii_letters + string.digits
                             self_boundary = ''.join(random.choice(
@@ -257,8 +272,8 @@ class Server(ThreadingTCP):
         try:
             if match:
                 result = match.group(1)
-                if not result.startswith('/'):
-                    result.replace('/','',0)
+                if result.startswith('/'):
+                    result = result.replace('/', '', 1)
                 user_post = result.split("/")[0]
                 if user_post == username:
                     access_path = os.path.join(
