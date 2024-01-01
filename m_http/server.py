@@ -192,7 +192,6 @@ class Server(ThreadingTCP):
                                 header_builder.content_type = 'text/plain'
                             else:
                                 header_builder.content_type = 'text/html'
-
                             response_body = Body.get_folder(
                                 filePath, return_html=("SUSTech-HTTP=1" not in SusTech_code), chunked=need_chunk)
                     elif os.path.isfile(filePath):
@@ -219,7 +218,7 @@ class Server(ThreadingTCP):
                                     filePath, range=header_pram.range[0], return_html=("SUSTech-HTTP=1" not in SusTech_code), chunked=need_chunk)
                                 total_len = os.path.getsize(filePath)
                                 header_builder.content_range = Body.normailize_range(range=header_pram.range[0],
-                                                                                     total_len=total_len)+'/'+total_len
+                                                                total_len=total_len)+'/'+total_len
                             else:
                                 characters = string.ascii_letters + string.digits
                                 self_boundary = ''.join(random.choice(
@@ -246,6 +245,7 @@ class Server(ThreadingTCP):
                                 filePath, boundary=self_boundary, ranges=header_pram.range, chunked=need_chunk)
                             header_builder.self_boundary = self_boundary
                         response_body = file_content
+                    
                     if (header_pram.range):
                         header_builder.status_code = 206
                     else:
@@ -273,6 +273,7 @@ class Server(ThreadingTCP):
                 result = match.group(1)
                 if result.startswith('/'):
                     result = result.replace('/', '', 1)
+                
                 user_post = result.split("/")[0]
                 if user_post == username:
                     access_path = os.path.join(
