@@ -50,7 +50,7 @@ class Client:
                 temp.append(request.encode())
                 with open(file_path, 'rb') as file:
                     while True:
-                        chunk = file.read(4096)
+                        chunk = file.read(2)
                         if not chunk:
                             break
                         temp.append(
@@ -188,7 +188,8 @@ if __name__ == "__main__":
 
     #client.send_request("HEAD", "/",headers=client.headers)
 
-    client.send_request("POST", "/delete?path=client1/a.txt",headers=client.headers)
+    #client.send_request("POST", "/delete?path=client1/a.txt",headers=client.headers)
     
-    #client.send_request("POST", "/", "Really want to play Genshin Impact",
-    #                    file_path="D:\Genshin Impact\laucher.txt", headers=client.headers)
+    client.headers["Content-Disposition"]="form-data; name=\"file\"; filename=\"laucher.txt\""
+    
+    client.send_request("POST", "/upload?path=client1/",file_path="D:\Genshin Impact\laucher.txt", headers=client.headers,isChunk=True)
