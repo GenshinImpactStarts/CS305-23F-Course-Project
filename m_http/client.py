@@ -184,9 +184,11 @@ class Client:
 if __name__ == "__main__":
     client = Client("127.0.0.1", 8080)
 
-    client.send_request("GET", "/a.txt",headers=client.headers)
+    #client.send_request("GET", "/a.txt",headers=client.headers)
 
-    client.send_request("HEAD", "/",headers=client.headers)
+    #client.send_request("HEAD", "/",headers=client.headers)
 
-    client.send_request("POST", "/", "Really want to play Genshin Impact",
-                        file_path="D:\Genshin Impact\laucher.txt", headers=client.headers)
+    client.send_request("POST", "http://localhost:8080/delete?path=client1/a.txt",headers=client.headers)
+    
+    #client.send_request("POST", "/", "Really want to play Genshin Impact",
+    #                    file_path="D:\Genshin Impact\laucher.txt", headers=client.headers)
