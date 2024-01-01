@@ -258,7 +258,8 @@ class Server(ThreadingTCP):
         try:
             if match:
                 result = match.group(1)
-
+                if not result.startswith('/'):
+                    result.replace('/','',0)
                 user_post = result.split("/")[0]
                 if user_post == username:
                     access_path = os.path.join(
