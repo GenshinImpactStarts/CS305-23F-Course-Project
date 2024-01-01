@@ -140,18 +140,26 @@ class Header:
             elif key == "range":
                 ranges = value.strip().replace("bytes=", "").split(",")
                 range_tuples = []
+
                 for r in ranges:
                     start, end = r.split("-")
-                    if end==None:
-                        raise StatusCode(416)
-                    if start == "":
-                        range_tuples.append((-int(end), None))
-                    elif end == "":
-                        range_tuples.append((int(start), None))
-                    else:
-                        if int(start)>int(end):
+                    if start and not end:
+                        if start.isdigit():
+                            range_tuples.append((int(start), None))
+                        else:
                             raise StatusCode(416)
-                        range_tuples.append((int(start), int(end)))
+                    elif not start and end:
+                        if end.isdigit():
+                            range_tuples.append((-int(end), None))
+                        else:
+                            raise StatusCode(416)
+                    elif start and end:
+                        if start.isdigit() and end.isdigit() and int(start) <= int(end):
+                            range_tuples.append((int(start), int(end)))
+                        else:
+                            raise StatusCode(416)
+                    else:
+                        raise StatusCode(416)
                 headers.range = range_tuples
             elif key == "content_disposition":
                 parts = [part.strip() for part in value.split(";")]
