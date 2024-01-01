@@ -76,8 +76,7 @@ class Body:
             html_list.append(f'<li><a href="./">./</a></li>'.encode())
             html_list.append(f'<li><a href="../">../</a></li>'.encode())
             for file_name in sorted(os.listdir(path)):
-                file_name = file_name.replace("&", "&amp;").replace(
-                    "<", "&lt;").replace(">", "&gt;")
+                file_name = Body.encode_url(file_name)
                 if os.path.isdir(os.path.join(path, file_name)):
                     file_name = file_name+'/'
                 html_list.append(
@@ -97,8 +96,8 @@ class Body:
 
     # range: (start: int, end: int)
     # only check out of range
-    def get_part_folder(path: str, range: tuple, chunked: bool = False) -> bytes:
-        result = Body.get_folder(path)
+    def get_part_folder(path: str, range: tuple, return_html: bool = False, chunked: bool = False) -> bytes:
+        result = Body.get_folder(path, return_html)
         start, end = Body.normailize_range(range, len(result))
         result = result[start:end+1]
         if chunked:
@@ -107,8 +106,8 @@ class Body:
 
     # ranges: [(start: int, end: int), (start,end), ...] start or end is None when not provided
     # only check out of range
-    def get_multi_part_folder(path: str, ranges: list, boundary: str, chunked: bool = False) -> bytes:
-        complete_html = Body.get_folder(path)
+    def get_multi_part_folder(path: str, ranges: list, boundary: str, return_html: bool = False, chunked: bool = False) -> bytes:
+        complete_html = Body.get_folder(path, return_html)
         def begin_func(): return
         def get_func(start, end): return complete_html[start, end]
         def exit_func(): return
@@ -234,6 +233,14 @@ class Body:
         if start < 0 or end < 0 or start >= total_len or end >= total_len or start > end:
             raise StatusCode(416)
         return (start, end)
+
+    def encode_url(url: str) -> str:
+        return url.replace(':', '%3A').replace('/', '%2F').replace('?', '%3F').replace('#', '%23').replace('[', '%5B').replace(']', '%5D').replace('@', '%40').replace('!', '%21').replace('$', '%24').replace('&', '%26').replace(',', '%2C').replace('(', '%28').replace(
+            ')', '%29').replace('*', '%2A').replace('+', '%2B').replace(',', '%2C').replace(';', '%3B').replace('=', '%3D').replace(' ', '%20')
+
+    def decode_url(url: str) -> str:
+        return url.replace('%3A', ':').replace('%2F', '/').replace('%3F', '?').replace('%23', '#').replace('%5B', '[').replace('%5D', ']').replace('%40', '@').replace('%21', '!').replace('%24', '$').replace('%26', '&').replace('%2C', ',').replace('%28', '(').replace(
+            '%29', ')').replace('%2A', '*').replace('%2B', '+').replace('%2C', ',').replace('%3B', ';').replace('%3D', '=').replace('%20', ' ')
 
     def __get_chunked_content(content: bytes) -> bytes:
         idx = 0

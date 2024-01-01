@@ -223,8 +223,7 @@ class Server(ThreadingTCP):
                             total_len = os.path.getsize(filePath)
                             header_pram.range[0] = Body.normailize_range(
                                 header_pram.range[0], total_len)
-                            header_builder.content_range = f'{
-                                header_pram.range[0][0]}-{header_pram.range[0][1]}/{total_len}'
+                            header_builder.content_range = f'{header_pram.range[0][0]}-{header_pram.range[0][1]}/{total_len}'
                         else:
                             characters = string.ascii_letters + string.digits
                             self_boundary = ''.join(random.choice(
