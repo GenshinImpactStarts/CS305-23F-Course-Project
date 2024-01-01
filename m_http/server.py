@@ -138,6 +138,12 @@ class Server(ThreadingTCP):
         response_body = b''
         if (len(path_part) > 1):
             SusTech_code = path_part[1]
+
+        if not (SusTech_code.startswith('SUSTech-HTTP=1') or SusTech_code.startswith('SUSTech-HTTP=0')
+                or SusTech_code.startswith('chunked=')):
+            if (SusTech_code != ''):
+                header_builder.status_code = 400
+                return response_body
         if (access_path.startswith('/')):
             access_path.replace('/', '', 1)
         filePath = os.path.join(self.current_file_path, "data", access_path)
@@ -190,13 +196,13 @@ class Server(ThreadingTCP):
                                 access_path)+'/?'+SusTech_code
                             return None
                         else:
-                            if (("SUSTech-HTTP=0" not in SusTech_code)):
-                                header_builder.content_type = 'html'
+                            if (("SUSTech-HTTP=1" in SusTech_code)):
+                                header_builder.content_type = 'text/plain'
                             else:
-                                header_builder.content_type = 'txt'
+                                header_builder.content_type = 'text/html'
                             if len(header_pram.range) == 1:
                                 response_body = Body.get_part_folder(
-                                    filePath, range=header_pram.range[0], return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
+                                    filePath, range=header_pram.range[0], return_html=("SUSTech-HTTP=1" not in SusTech_code), chunked=need_chunk)
                                 total_len = os.path.getsize(filePath)
                                 header_builder.content_range = Body.normailize_range(range=header_pram.range[0],
                                                                                      total_len=total_len)+'/'+total_len
@@ -205,7 +211,8 @@ class Server(ThreadingTCP):
                                 self_boundary = ''.join(random.choice(
                                     characters) for i in range(30))
                                 response_body = Body.get_multi_part_folder(
-                                    filePath, range=header_pram.range, boundary=self_boundary, return_html=("SUSTech-HTTP=0" not in SusTech_code), chunked=need_chunk)
+                                    filePath, range=header_pram.range, boundary=self_boundary, 
+                                    return_html=("SUSTech-HTTP=1" not in SusTech_code), chunked=need_chunk)
                                 header_builder.self_boundary = self_boundary
                     elif os.path.isfile(filePath):
                         header_builder.content_type, _ = mimetypes.guess_type(
@@ -216,7 +223,8 @@ class Server(ThreadingTCP):
                             total_len = os.path.getsize(filePath)
                             header_pram.range[0] = Body.normailize_range(
                                 header_pram.range[0], total_len)
-                            header_builder.content_range = f'{header_pram.range[0][0]}-{header_pram.range[0][1]}/{total_len}'
+                            header_builder.content_range = f'{
+                                header_pram.range[0][0]}-{header_pram.range[0][1]}/{total_len}'
                         else:
                             characters = string.ascii_letters + string.digits
                             self_boundary = ''.join(random.choice(
@@ -308,7 +316,7 @@ class Server(ThreadingTCP):
                     cookie_part = param.split("=")
                     if len(cookie_part) > 1:
                         cookie_key = cookie_part[0].lower()
-                        cookie_value = cookie_part[1].strip().replace(';','')
+                        cookie_value = cookie_part[1].strip().replace(';', '')
                         cookie_dict[cookie_key] = cookie_value
                 if 'session-id' in cookie_dict:
                     if cookie_dict['session-id'] in self.cookie_set:
@@ -325,8 +333,8 @@ class Server(ThreadingTCP):
                     test_cookie = True
             else:
                 test_cookie = True
-            if (username==None): 
-                test_cookie=True
+            if (username == None):
+                test_cookie = True
             if test_cookie:
                 if header_pram.authorization:
                     if header_pram.authorization.startswith("Basic "):
