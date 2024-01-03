@@ -71,6 +71,25 @@ class Client:
 
             return b''.join(temp)  # here TODO
 
+    def send_test(self,request):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.connect((self.host,self.port))
+                except socket.timeout:
+                    print(f"Connection to {self.host}:{self.port} timed out.")
+                    return
+                except socket.gaierror:
+                    print(
+                        f"Address-related error connecting to {self.host}:{self.port}")
+                    return
+                print("request:\n",request.decode())
+                s.sendall(request)
+                print("response:\n",s.recv(4096).decode())
+                
+        except socket.error as e:
+            print(f"Socket error: {e}")
+    
     def send_request(self, method, uri, body=None, headers=None, file_path=None, isChunk=False):
         request = self.compile_request(
             method, uri, body, headers, file_path, isChunk)
@@ -195,6 +214,8 @@ if __name__ == "__main__":
 
     #client.send_request("POST", "/delete?path=client1/a.txt",headers=client.headers)
     
-    client.headers["Content-Disposition"]="form-data; name=\"file\"; filename=\"laucher.txt\""
+    #client.headers["Content-Disposition"]="form-data; name=\"file\"; filename=\"laucher.txt\""
     
-    client.send_request("POST", "/upload?path=client2/",file_path="D:\Genshin Impact\laucher.txt", headers=client.headers,isChunk=True)
+    client.send_test(b'POST /upload?path=client2/ HTTP/1.1Host: 127.0.0.1\r\nAuthorization: Basic Y2xpZW50MjoxMjM=\r\nContent-Disposition: form-data; name="file"; filename="laucher.txt"\r\nContent-Type: text/plain\r\n\r\n')
+    
+    #client.send_request("POST", "/upload?path=client2/",file_path="D:\Genshin Impact\laucher.txt", headers=client.headers,isChunk=True)
