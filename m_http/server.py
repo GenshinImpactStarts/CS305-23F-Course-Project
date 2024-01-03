@@ -74,16 +74,16 @@ class Server(ThreadingTCP):
                 rest = temp_req[1]
             request = [tempHeader, rest]
             
-            method, path, version = header.Header.parse_request_line(
+            method, path, version,err_code1 = header.Header.parse_request_line(
                     join_req)
-            header_pram, body ,err_code= header.Header.parse_request_headers(
+            header_pram, body ,err_code2= header.Header.parse_request_headers(
                     join_req)
-            if (err_code is not None):
-                header_class.get_headbuilder().status_code=err_code
+            if (err_code1 is not None or  err_code2 is not None):
+                header_class.get_headbuilder().status_code=err_code2
+                if (err_code1 is not None):
+                    header_class.get_headbuilder().status_code=err_code1
             path = Body.decode_url(path)
             header_store=self.header_pram_temp(method,path,version,header_pram,body)
-            
-
             
         body_length += len(request[-1])
         if (header_store.header_pram.content_length != 0):
