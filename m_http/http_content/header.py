@@ -112,8 +112,16 @@ class Header:
             request = request.decode('utf-8')
         lines = request.split("\r\n")
         request_line = lines[0]
-        method, path, version = [v.strip() for v in request_line.split(" ")]
-        return method, path, version
+        parts = [v.strip() for v in request_line.split(" ")]
+        if len(parts) < 3:
+            return None,None,None
+        elif len(parts) > 3:
+            method = parts[0]
+            version = parts[-1]
+            path = ' '.join(parts[1:-1])
+            return method, path, version
+        else:
+            return parts[0],parts[1],parts[2]
 
     # parse the others!
 
