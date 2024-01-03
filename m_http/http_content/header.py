@@ -114,14 +114,17 @@ class Header:
         request_line = lines[0]
         parts = [v.strip() for v in request_line.split(" ")]
         if len(parts) < 3:
-            return None,None,None
+            return None,None,None,400
         elif len(parts) > 3:
             method = parts[0]
             version = parts[-1]
-            path = ' '.join(parts[1:-1])
-            return method, path, version
+            if version =='HTTP/1.1':
+                path = ' '.join(parts[1:-1])
+                return method, path, version,None
+            else:
+                return None,None,None,400
         else:
-            return parts[0],parts[1],parts[2]
+            return parts[0],parts[1],parts[2],None
 
     # parse the others!
 
